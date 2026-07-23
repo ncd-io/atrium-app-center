@@ -1,0 +1,31 @@
+{
+  "id": "machine-health",
+  "name": "AssetPulse",
+  "version": "1.1.1",
+  "description": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
+  "minPlatformVersion": "2.1.0",
+  "models": ["EG5120"],
+  "license": {
+    "required": true
+  },
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "radio:fft",
+    "notify:email",
+    "net:external",
+    "secrets"
+  ],
+  "ui": {
+    "icon": "AP",
+    "subtitle": "Machine Health"
+  }
+}

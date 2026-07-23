@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "generated_at": 1784825778766,
-  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODQ4MjU3Nzg3NjYsInNoYTI1NiI6IjI4YTYxNmMyOThjMWFiODdmYjMxN2M2NDdlYjFjYmJjNWQ0NTBjMmI4ZGNhOTVlNGU0YTk4MWQ0MWI4OTQwZjQiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.nKufijLz2B8AjE8H1paRwHUlr9pMPVkMqliSfsLKx6-dCGAKVnEGrfYxw1YWOR7qWId9oRpoqIc_IQAgzIG4DQ",
+  "generated_at": 1784827420459,
+  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODQ4Mjc0MjA0NTksInNoYTI1NiI6IjBkNjA1NjEyNjBiNzI4MDFmOGRiMjRlMjg3ZDEzNzBkMTJmM2NmNjcwNDUwMzBmZWYzMWYzZmYyZTQ0OGQ1NDUiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.O05Tq9qMbIvsq6jXEu8KRPiMWzvy98gu5Ff60s1IemLYrsradr4plHeEkmgnUGqDnvfDJjz1vRIV2tYA06tXAA",
   "apps": [
     {
       "id": "action",
@@ -75,6 +75,33 @@
           "readme_html": "<h3>Environmental</h3>\n<p>Monitor temperature, humidity, air quality, and compliance across facility zones.</p>\n<h4>What it does</h4>\n<ul><li>Groups sensors into facility <strong>zones</strong> and shows current conditions per zone.</li><li>Tracks temperature, humidity, and air-quality readings over time.</li><li>Flags out-of-range conditions so you can act before a compliance excursion.</li></ul>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>One or more environmental sensors reporting to the gateway.</li></ul>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>",
           "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Zone-based temperature, humidity, and air-quality monitoring.\n- Out-of-range condition flags.",
           "sig": "eyJ2IjoxLCJpZCI6ImVudmlyb25tZW50YWwiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzaGEyNTYiOiI3MGY5MjhmYjc4YjRiYzJlMDEyMDgzZmQwMGY4NDJkZjFlYzM1NThmOWU2YzUyZGU1NDg4ZmE2NGJjYjZhN2I0Iiwia2lkIjoibmNkLXBrZy0yMDI2YSJ9.Xcmlh21C79kH3BTMWjItmYZa5UoqyyCBvQvcaWjvkjrpVllRWoNK3Iic8AJC7X11yHw5gCWGhi_Fwk7x3WxlCA"
+        }
+      ]
+    },
+    {
+      "id": "machine-health",
+      "name": "AssetPulse",
+      "icon": "AP",
+      "subtitle": "Machine Health",
+      "description": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
+      "summary": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
+      "license_required": true,
+      "latest": "1.1.1",
+      "versions": [
+        {
+          "version": "1.1.1",
+          "minPlatformVersion": "2.1.0",
+          "models": [
+            "EG5120"
+          ],
+          "released_at": 1784827404082,
+          "size": 1289381,
+          "sha256": "86e428a0e1b8cb72cc6038e4e48841fe36a2a80079223bb1dda6f44041b3657d",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/machine-health-v1.1.1/machine-health-1.1.1.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/machine-health/1.1.1/README.md",
+          "readme_html": "<h3>AssetPulse</h3>\n<p>Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.</p>\n<h4>What it does</h4>\n<ul><li>Organize your plant into <strong>assets</strong> (motors, pumps, fans, gearboxes) and pair</li></ul>\n<p>  each with a vibration sensor.</p>\n<ul><li>Continuously monitors vibration and surfaces developing faults before they</li></ul>\n<p>  cause unplanned downtime.</p>\n<ul><li>Turns the analysis into <strong>plain-language health insights</strong> so you don't need a</li></ul>\n<p>  vibration analyst to act on the data.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.1.0</strong> or newer.</li><li>Gateway model <strong>EG5120</strong> (the vibration analysis is CPU-intensive and is not</li></ul>\n<p>  supported on the EG5100).</p>\n<ul><li>One or more NCD vibration sensors paired with the gateway.</li></ul>\n<h4>Licensing</h4>\n<p>AssetPulse is a <strong>licensed app</strong>. You can install it from the App Center at any time, but it stays locked until a signed license bound to your gateway is entered on the app's License screen. Contact NCD to obtain a license.</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>",
+          "changelog": "# Changelog\n\n## 1.1.1\n\n- Overview page now refreshes in place on its 30-second tick instead of tearing\n  down to a full-page \"Loading…\" state, so the AI insight banner and recent\n  activity no longer flicker. A subtle \"updating…\" indicator shows during a\n  background refresh, and the last good overview is kept if a background refresh\n  fails.\n\n## 1.1.0\n\n- Asset setup and management.\n- Continuous vibration monitoring with plain-language health insights.",
+          "sig": "eyJ2IjoxLCJpZCI6Im1hY2hpbmUtaGVhbHRoIiwidmVyc2lvbiI6IjEuMS4xIiwic2hhMjU2IjoiODZlNDI4YTBlMWI4Y2I3MmNjNjAzOGU0ZTQ4ODQxZmUzNmEyYTgwMDc5MjIzYmIxZGRhNmY0NDA0MWIzNjU3ZCIsImtpZCI6Im5jZC1wa2ctMjAyNmEifQ.Sqf2V1P7WDqQFjE0nPOu34fyFvGrjGne75xNbCd0OM9dcsHz4x7bPyJGl56W1naS6DhOv_Cyuqhlrzi2drVaBw"
         }
       ]
     },
