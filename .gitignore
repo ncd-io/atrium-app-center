@@ -1,0 +1,9 @@
+.DS_Store
+node_modules/
+*.pem
+*.log
+
+# Built packages are published as GitHub Release assets, not committed to git
+# (they stay staged locally under apps/<id>/<version>/ only to build the catalog
+# and upload the release asset). catalog.json references the Release URLs.
+apps/**/*.tar.gz

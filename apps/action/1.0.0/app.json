@@ -1,0 +1,23 @@
+{
+  "id": "action",
+  "name": "Action",
+  "version": "1.0.0",
+  "description": "Automate relay control with sensor-triggered recipes and interactive board management.",
+  "minPlatformVersion": "2.0.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "relay:command"
+  ],
+  "ui": {
+    "icon": "AC"
+  }
+}

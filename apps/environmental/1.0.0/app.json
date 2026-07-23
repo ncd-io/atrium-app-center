@@ -1,0 +1,20 @@
+{
+  "id": "environmental",
+  "name": "Environmental",
+  "version": "1.0.0",
+  "description": "Monitor temperature, humidity, air quality, and compliance across facility zones.",
+  "minPlatformVersion": "2.0.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read"
+  ],
+  "ui": {
+    "icon": "EV"
+  }
+}

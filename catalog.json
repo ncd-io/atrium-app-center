@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "generated_at": 1784825778766,
+  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODQ4MjU3Nzg3NjYsInNoYTI1NiI6IjI4YTYxNmMyOThjMWFiODdmYjMxN2M2NDdlYjFjYmJjNWQ0NTBjMmI4ZGNhOTVlNGU0YTk4MWQ0MWI4OTQwZjQiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.nKufijLz2B8AjE8H1paRwHUlr9pMPVkMqliSfsLKx6-dCGAKVnEGrfYxw1YWOR7qWId9oRpoqIc_IQAgzIG4DQ",
+  "apps": [
+    {
+      "id": "action",
+      "name": "Action",
+      "icon": "AC",
+      "subtitle": null,
+      "description": "Automate relay control with sensor-triggered recipes and interactive board management.",
+      "summary": "Automate relay control with sensor-triggered recipes and interactive board management.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.0.0",
+          "models": [],
+          "released_at": 1784825713201,
+          "size": 1167942,
+          "sha256": "98f2a30f9d79a2e09ae7f4c3187e4717c5894197f88b8d4cbbe01831b76697d7",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/action-v1.0.0/action-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/action/1.0.0/README.md",
+          "readme_html": "<h3>Action</h3>\n<p>Automate relay control with sensor-triggered recipes and interactive board management.</p>\n<h4>What it does</h4>\n<ul><li>Build <strong>recipes</strong> that command relays in response to live sensor telemetry.</li><li>Manage NCD relay boards interactively from the dashboard.</li><li>Subscribe to telemetry in real time so actions fire the moment a threshold is</li></ul>\n<p>  crossed.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>At least one NCD relay board paired with the gateway.</li></ul>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li><li><code>telemetry:subscribe</code> — receives live sensor frames.</li><li><code>relay:command</code> — sends relay commands through the platform.</li></ul>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Sensor-triggered relay recipes.\n- Interactive relay board management.",
+          "sig": "eyJ2IjoxLCJpZCI6ImFjdGlvbiIsInZlcnNpb24iOiIxLjAuMCIsInNoYTI1NiI6Ijk4ZjJhMzBmOWQ3OWEyZTA5YWU3ZjRjMzE4N2U0NzE3YzU4OTQxOTdmODhiOGQ0Y2JiZTAxODMxYjc2Njk3ZDciLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.53nzKQX4oZGgpn7Lv3EwktqFWV7iqbCk10Um7o29krHmbWd8UIOk5gmt__gNq9bVFyJjay7lO65XJ2e2Kv-aAA"
+        }
+      ]
+    },
+    {
+      "id": "energy",
+      "name": "Energy Monitor",
+      "icon": "EN",
+      "subtitle": null,
+      "description": "Monitor energy consumption and identify optimization opportunities.",
+      "summary": "Monitor energy consumption and identify optimization opportunities.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.0.0",
+          "models": [],
+          "released_at": 1784825713113,
+          "size": 1145934,
+          "sha256": "1fedae59753da284f2aec44c98758b3f5ba6b34349ff214a6d28ceeafe4725c2",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/energy-v1.0.0/energy-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/energy/1.0.0/README.md",
+          "readme_html": "<h3>Energy Monitor</h3>\n<p>Monitor energy consumption and identify optimization opportunities.</p>\n<h4>What it does</h4>\n<ul><li>Visualizes energy usage across monitored equipment.</li><li>Highlights consumption trends so you can spot waste and optimization</li></ul>\n<p>  opportunities.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>The <strong>Productivity Monitor</strong> app (Energy Monitor builds on its runtime data).</li><li>Energy/current sensors reporting to the gateway.</li></ul>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Energy consumption visualization and trend analysis.",
+          "sig": "eyJ2IjoxLCJpZCI6ImVuZXJneSIsInZlcnNpb24iOiIxLjAuMCIsInNoYTI1NiI6IjFmZWRhZTU5NzUzZGEyODRmMmFlYzQ0Yzk4NzU4YjNmNWJhNmIzNDM0OWZmMjE0YTZkMjhjZWVhZmU0NzI1YzIiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.T9XJ3rnETw3-f8GDZiY52rjI2kSEMA9BeDj4QTv0X8x-hufPMHKfR_hGMIuNjDiKov5riWwKU69snu8DBY42Aw"
+        }
+      ]
+    },
+    {
+      "id": "environmental",
+      "name": "Environmental",
+      "icon": "EV",
+      "subtitle": null,
+      "description": "Monitor temperature, humidity, air quality, and compliance across facility zones.",
+      "summary": "Monitor temperature, humidity, air quality, and compliance across facility zones.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.0.0",
+          "models": [],
+          "released_at": 1784825713135,
+          "size": 1092681,
+          "sha256": "70f928fb78b4bc2e012083fd00f842df1ec3558f9e6c52de5488fa64bcb6a7b4",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/environmental-v1.0.0/environmental-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/environmental/1.0.0/README.md",
+          "readme_html": "<h3>Environmental</h3>\n<p>Monitor temperature, humidity, air quality, and compliance across facility zones.</p>\n<h4>What it does</h4>\n<ul><li>Groups sensors into facility <strong>zones</strong> and shows current conditions per zone.</li><li>Tracks temperature, humidity, and air-quality readings over time.</li><li>Flags out-of-range conditions so you can act before a compliance excursion.</li></ul>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>One or more environmental sensors reporting to the gateway.</li></ul>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Zone-based temperature, humidity, and air-quality monitoring.\n- Out-of-range condition flags.",
+          "sig": "eyJ2IjoxLCJpZCI6ImVudmlyb25tZW50YWwiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzaGEyNTYiOiI3MGY5MjhmYjc4YjRiYzJlMDEyMDgzZmQwMGY4NDJkZjFlYzM1NThmOWU2YzUyZGU1NDg4ZmE2NGJjYjZhN2I0Iiwia2lkIjoibmNkLXBrZy0yMDI2YSJ9.Xcmlh21C79kH3BTMWjItmYZa5UoqyyCBvQvcaWjvkjrpVllRWoNK3Iic8AJC7X11yHw5gCWGhi_Fwk7x3WxlCA"
+        }
+      ]
+    },
+    {
+      "id": "oee",
+      "name": "OEE",
+      "icon": "OE",
+      "subtitle": null,
+      "description": "Overall Equipment Effectiveness tracking and analysis.",
+      "summary": "Overall Equipment Effectiveness tracking and analysis.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.0.0",
+          "models": [],
+          "released_at": 1784825713179,
+          "size": 1112891,
+          "sha256": "bcf5cb40b7e6a827173370ccddbe4724152a2bdd62fc4c0a56c0899c38d86287",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/oee-v1.0.0/oee-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/oee/1.0.0/README.md",
+          "readme_html": "<h3>OEE</h3>\n<p>Overall Equipment Effectiveness tracking and analysis.</p>\n<h4>What it does</h4>\n<ul><li>Calculates OEE from <strong>availability</strong>, <strong>performance</strong>, and <strong>quality</strong>.</li><li>Trends OEE over time so you can measure the impact of process changes.</li></ul>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>The <strong>Productivity Monitor</strong> app (OEE derives availability and performance</li></ul>\n<p>  from its runtime data).</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Availability / performance / quality OEE calculation with trend history.",
+          "sig": "eyJ2IjoxLCJpZCI6Im9lZSIsInZlcnNpb24iOiIxLjAuMCIsInNoYTI1NiI6ImJjZjVjYjQwYjdlNmE4MjcxNzMzNzBjY2RkYmU0NzI0MTUyYTJiZGQ2MmZjNGMwYTU2YzA4OTljMzhkODYyODciLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.p6nTHfZLfTmHFEC5COjvS1L4bF-sRp4RzHg8ntGxpFYYKHZN0c1yhCIrgQImJYmBGeEVVvSnL3N7cz-6Jn5GCA"
+        }
+      ]
+    },
+    {
+      "id": "productivity",
+      "name": "Productivity Monitor",
+      "icon": "PM",
+      "subtitle": null,
+      "description": "Track machine runtime against shift quotas with real-time gauges.",
+      "summary": "Track machine runtime against shift quotas with real-time gauges.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.0.0",
+          "models": [],
+          "released_at": 1784825713157,
+          "size": 1270217,
+          "sha256": "24b450663fc319e4dca6ef6c7e3b1ff507e2076fa8bc4a020b29e560ba16b253",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/productivity-v1.0.0/productivity-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/productivity/1.0.0/README.md",
+          "readme_html": "<h3>Productivity Monitor</h3>\n<p>Track machine runtime against shift quotas with real-time gauges.</p>\n<h4>What it does</h4>\n<ul><li>Live runtime gauges for each monitored machine, updated as sensor frames arrive.</li><li>Compares actual runtime against configurable shift quotas so operators can see</li></ul>\n<p>  at a glance whether a line is on pace.</p>\n<ul><li>Per-shift rollups you can review from the dashboard.</li></ul>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>At least one machine with a runtime/vibration sensor already reporting to the</li></ul>\n<p>  gateway.</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>\n<h4>Notes</h4>\n<p>Productivity Monitor is the shared data source for the <strong>OEE</strong> and <strong>Energy Monitor</strong> apps. Install it first if you plan to use either of those.</p>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Real-time runtime gauges with configurable shift quotas.\n- Per-shift runtime rollups.",
+          "sig": "eyJ2IjoxLCJpZCI6InByb2R1Y3Rpdml0eSIsInZlcnNpb24iOiIxLjAuMCIsInNoYTI1NiI6IjI0YjQ1MDY2M2ZjMzE5ZTRkY2E2ZWY2YzdlM2IxZmY1MDdlMjA3NmZhOGJjNGEwMjBiMjllNTYwYmExNmIyNTMiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.vRe4ouRsHe4HNkYmw9Qbm_u5zEWChKvyuBg_rhVQGk-DATEFZdVsyTIfmxNW1GtU2hSp3KXKfr-wen5w1JMCDg"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "id": "productivity",
+  "name": "Productivity Monitor",
+  "version": "1.0.0",
+  "description": "Track machine runtime against shift quotas with real-time gauges.",
+  "minPlatformVersion": "2.0.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read"
+  ],
+  "ui": {
+    "icon": "PM"
+  }
+}

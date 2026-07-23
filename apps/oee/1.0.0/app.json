@@ -1,0 +1,23 @@
+{
+  "id": "oee",
+  "name": "OEE",
+  "version": "1.0.0",
+  "description": "Overall Equipment Effectiveness tracking and analysis.",
+  "minPlatformVersion": "2.0.0",
+  "requires": [
+    "productivity"
+  ],
+  "entries": {
+    "api": "backend/api/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read"
+  ],
+  "ui": {
+    "icon": "OE"
+  }
+}

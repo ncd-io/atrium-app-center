@@ -1,0 +1,23 @@
+{
+  "id": "energy",
+  "name": "Energy Monitor",
+  "version": "1.0.0",
+  "description": "Monitor energy consumption and identify optimization opportunities.",
+  "minPlatformVersion": "2.0.0",
+  "requires": [
+    "productivity"
+  ],
+  "entries": {
+    "api": "backend/api/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read"
+  ],
+  "ui": {
+    "icon": "EN"
+  }
+}
