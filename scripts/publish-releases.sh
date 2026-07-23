@@ -27,35 +27,55 @@ API="https://api.github.com/repos/$REPO"
 UPLOADS="https://uploads.github.com/repos/$REPO"
 auth=(-H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json")
 
+release_id() {  # tag -> release id ("" if none). 404 for a missing tag is fine.
+  { curl -sS "${auth[@]}" "$API/releases/tags/$1" 2>/dev/null \
+    | sed -n 's/.*"id": *\([0-9]\{1,\}\).*/\1/p' | head -1; } || true
+}
+
+# Pass 1 — ensure a release exists for every staged package.
+echo "== pass 1: releases"
 for tar in "$DIR"/*/*/*.tar.gz; do
-  file="$(basename "$tar")"
-  # derive id/version from apps/<id>/<version>/<file>
   version="$(basename "$(dirname "$tar")")"
   id="$(basename "$(dirname "$(dirname "$tar")")")"
   tag="$id-v$version"
-
-  echo "== $tag ($file)"
-  rel="$(curl -fsS "${auth[@]}" "$API/releases/tags/$tag" 2>/dev/null || true)"
-  rid="$(printf '%s' "$rel" | sed -n 's/.*"id": *\([0-9]\{1,\}\).*/\1/p' | head -1)"
-  if [ -z "$rid" ]; then
-    rel="$(curl -fsS "${auth[@]}" -X POST "$API/releases" \
-      -d "{\"tag_name\":\"$tag\",\"target_commitish\":\"main\",\"name\":\"$id $version\",\"body\":\"Atrium App Center package for $id v$version.\"}")"
-    rid="$(printf '%s' "$rel" | sed -n 's/.*"id": *\([0-9]\{1,\}\).*/\1/p' | head -1)"
-    echo "   created release id=$rid"
+  rid="$(release_id "$tag")"
+  if [ -n "$rid" ]; then
+    echo "   $tag exists (id=$rid)"
   else
-    echo "   release exists id=$rid"
+    curl -fsS "${auth[@]}" -X POST "$API/releases" \
+      -d "{\"tag_name\":\"$tag\",\"target_commitish\":\"main\",\"name\":\"$id $version\",\"body\":\"Atrium App Center package for $id v$version.\"}" >/dev/null
+    echo "   $tag created"
   fi
-  [ -n "$rid" ] || { echo "   ERROR: could not resolve release id"; exit 1; }
+done
 
-  existing="$(curl -fsS "${auth[@]}" "$API/releases/$rid/assets" | grep -c "\"name\": \"$file\"" || true)"
-  if [ "$existing" != "0" ]; then
-    echo "   asset already uploaded, skipping"
+# A just-created release briefly rejects asset uploads (400) while GitHub settles
+# it, so give the new releases a head start before pass 2 (which also retries).
+sleep 30
+
+# Pass 2 — upload the asset to each (now-settled) release.
+echo "== pass 2: assets"
+for tar in "$DIR"/*/*/*.tar.gz; do
+  file="$(basename "$tar")"
+  version="$(basename "$(dirname "$tar")")"
+  id="$(basename "$(dirname "$(dirname "$tar")")")"
+  tag="$id-v$version"
+  rid="$(release_id "$tag")"
+  [ -n "$rid" ] || { echo "   ERROR: no release for $tag"; exit 1; }
+
+  if curl -fsS "${auth[@]}" "$API/releases/$rid/assets" | grep -q "\"name\": \"$file\""; then
+    echo "   $file already uploaded"
     continue
   fi
-  curl -fsS "${auth[@]}" -H "Content-Type: application/gzip" \
-    --data-binary @"$tar" \
-    "$UPLOADS/$rid/assets?name=$file" >/dev/null
-  echo "   uploaded asset $file"
+  ok=""
+  for attempt in 1 2 3 4 5 6 7 8; do
+    code="$(curl -sS -o /dev/null -w '%{http_code}' "${auth[@]}" \
+      -H "Content-Type: application/gzip" --data-binary @"$tar" \
+      "$UPLOADS/$rid/assets?name=$file")"
+    if [ "$code" = "201" ]; then ok=1; break; fi
+    echo "   $file attempt $attempt got HTTP $code, retrying..."; sleep 5
+  done
+  [ -n "$ok" ] || { echo "   ERROR: asset upload failed for $file"; exit 1; }
+  echo "   uploaded $file"
 done
 
 echo "done."
