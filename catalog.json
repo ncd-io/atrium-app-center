@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "generated_at": 1784827420459,
-  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODQ4Mjc0MjA0NTksInNoYTI1NiI6IjBkNjA1NjEyNjBiNzI4MDFmOGRiMjRlMjg3ZDEzNzBkMTJmM2NmNjcwNDUwMzBmZWYzMWYzZmYyZTQ0OGQ1NDUiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.O05Tq9qMbIvsq6jXEu8KRPiMWzvy98gu5Ff60s1IemLYrsradr4plHeEkmgnUGqDnvfDJjz1vRIV2tYA06tXAA",
+  "generated_at": 1785277468248,
+  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODUyNzc0NjgyNDgsInNoYTI1NiI6IjU1ZGRmMGY0NmQ4MjVmYjU0NjQ1ZWE0Y2EzYTk3N2FlODE1ODE2ZDk5ZWU0YWUxMzI3YTA0NDExNTg1NWY2MTMiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.MuMr4Kp8_YueKfi2qvYSWsfHez5-Meqy0l-kEXlYcFFxONUX_aWJ6oh4bKT7XM_2vs0JEeiwfP4WCzjaYfcGBg",
   "apps": [
     {
       "id": "action",
@@ -86,8 +86,23 @@
       "description": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
       "summary": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
       "license_required": true,
-      "latest": "1.1.1",
+      "latest": "1.2.0",
       "versions": [
+        {
+          "version": "1.2.0",
+          "minPlatformVersion": "2.1.0",
+          "models": [
+            "EG5120"
+          ],
+          "released_at": 1785277461272,
+          "size": 1302620,
+          "sha256": "dbe2331bb40564931269f1c8cd39834b6207a6f84a7322729ed0ecee1a5073ed",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/machine-health-v1.2.0/machine-health-1.2.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/machine-health/1.2.0/README.md",
+          "readme_html": "<h3>AssetPulse</h3>\n<p>Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.</p>\n<h4>What it does</h4>\n<ul><li>Organize your plant into <strong>assets</strong> (motors, pumps, fans, gearboxes) and pair</li></ul>\n<p>  each with a vibration sensor.</p>\n<ul><li>Continuously monitors vibration and surfaces developing faults before they</li></ul>\n<p>  cause unplanned downtime.</p>\n<ul><li>Turns the analysis into <strong>plain-language health insights</strong> so you don't need a</li></ul>\n<p>  vibration analyst to act on the data.</p>\n<ul><li>Optionally <strong>publishes to MQTT</strong> — stream summary telemetry, waveform captures,</li></ul>\n<p>  AI reports, and alerts to your own broker on operator-defined topics.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.1.0</strong> or newer.</li><li>Gateway model <strong>EG5120</strong> (the vibration analysis is CPU-intensive and is not</li></ul>\n<p>  supported on the EG5100).</p>\n<ul><li>One or more NCD vibration sensors paired with the gateway.</li></ul>\n<h4>Licensing</h4>\n<p>AssetPulse is a <strong>licensed app</strong>. You can install it from the App Center at any time, but it stays locked until a signed license bound to your gateway is entered on the app's License screen. Contact NCD to obtain a license.</p>\n<h4>Configuration</h4>\n<ul><li><strong>AI &amp; Reports</strong> (optional) — configure an AI provider, model, and API key to</li></ul>\n<p>  generate plain-language reports. Use the <strong>Test</strong> button to validate the   provider before saving.</p>\n<ul><li><strong>Notifications</strong> (optional) — email maintenance staff on severity increases;</li></ul>\n<p>  requires SMTP configured on the gateway.</p>\n<ul><li><strong>MQTT</strong> (optional) — enable MQTT publishing and set a topic template per data</li></ul>\n<p>  stream (Summary, Waveform, AI Reports, Alerts). Topics support <code>::Token::</code>   replacement (asset name, gateway id, sensor id, etc.); leave a topic blank to   disable that stream. The gateway's broker connection is configured in the   platform's <strong>Settings → MQTT Client</strong>, where the operator must also grant   AssetPulse permission to publish.</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li><li><code>telemetry:subscribe</code> — receives live sensor frames for alert evaluation.</li><li><code>radio:fft</code> — requests and analyzes raw vibration waveforms.</li><li><code>notify:email</code> — sends fault/alert emails via the gateway mailer.</li><li><code>net:external</code> — reaches the configured external AI provider for reports.</li><li><code>secrets</code> — stores the AI provider API key encrypted at rest.</li><li><code>mqtt:client</code> — publishes on the gateway's shared MQTT client (the operator</li></ul>\n<p>  must also grant AssetPulse in <strong>Settings → MQTT Client</strong>).</p>",
+          "changelog": "# Changelog\n\n## 1.2.0\n\n- **MQTT publishing.** A new **Settings → MQTT** section lets you publish\n  AssetPulse data to the gateway's shared MQTT broker. Enable MQTT and set a\n  topic template for each stream — **Summary Data**, **Waveform Data**, **AI\n  Analysis Reports**, and **Alerts**. Topics support `::Token::` replacement\n  (e.g. `main_building/3rd_floor/::Gateway_Id::/::Asset_Name::/::Sensor_Id::`),\n  so messages are routed with your own asset, gateway, and sensor names. Leaving\n  a topic blank disables publishing for that stream. Requires the operator to\n  grant AssetPulse in the gateway's **Settings → MQTT Client**.\n- **Test AI provider.** The AI & Reports settings now include a **Test** button\n  that validates the configured AI provider, model, and API key before you save,\n  so misconfigured credentials are caught up front.\n\n## 1.1.1\n\n- Overview page now refreshes in place on its 30-second tick instead of tearing\n  down to a full-page \"Loading…\" state, so the AI insight banner and recent\n  activity no longer flicker. A subtle \"updating…\" indicator shows during a\n  background refresh, and the last good overview is kept if a background refresh\n  fails.\n\n## 1.1.0\n\n- Asset setup and management.\n- Continuous vibration monitoring with plain-language health insights.",
+          "sig": "eyJ2IjoxLCJpZCI6Im1hY2hpbmUtaGVhbHRoIiwidmVyc2lvbiI6IjEuMi4wIiwic2hhMjU2IjoiZGJlMjMzMWJiNDA1NjQ5MzEyNjlmMWM4Y2QzOTgzNGI2MjA3YTZmODRhNzMyMjcyOWVkMGVjZWUxYTUwNzNlZCIsImtpZCI6Im5jZC1wa2ctMjAyNmEifQ.8OHuK1gnOo0eUP6_DZkR-mdlPUO30sU6GNwrQwg9qlKhJqe2_LZ9lPAtI4BIcrNiYxlQT0rEMpGrIhlaq_ysAA"
+        },
         {
           "version": "1.1.1",
           "minPlatformVersion": "2.1.0",
