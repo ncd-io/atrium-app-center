@@ -3,7 +3,7 @@
   "name": "AssetPulse",
   "version": "1.2.0",
   "description": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
-  "minPlatformVersion": "2.1.0",
+  "minPlatformVersion": "2.3.1",
   "models": ["EG5120"],
   "license": {
     "required": true

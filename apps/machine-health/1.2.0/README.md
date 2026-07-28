@@ -16,7 +16,8 @@ and get plain-language health insights.
 
 ## Requirements
 
-- Atrium platform **2.1.0** or newer.
+- Atrium platform **2.3.1** or newer (MQTT client support for apps was added in
+  2.3.1).
 - Gateway model **EG5120** (the vibration analysis is CPU-intensive and is not
   supported on the EG5100).
 - One or more NCD vibration sensors paired with the gateway.
