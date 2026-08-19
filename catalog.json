@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "generated_at": 1785277896732,
-  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODUyNzc4OTY3MzIsInNoYTI1NiI6Ijk0MGU5YmVkMThlNTM3MTg2ZDc3Zjc3NWFkZTA4Y2MyMDZjM2E1N2U1NjZlNjRmOWQyNTQ3ZWQwNTU5NDkyZmUiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.Avxz-8z1RrmXhP484uw1OSoYH_j_5UR3VOvxz4McBVLGySDd_cTXj26QDLzlHK_1Mh0rKEN5ijy32sbaYcGMDw",
+  "generated_at": 1787176477961,
+  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODcxNzY0Nzc5NjEsInNoYTI1NiI6ImVmNTU5YjBhZDdiN2VmYTE4MzE5Y2M5YzNjZTFiY2UyNTQ1OWYxMWI3YzNjNDg4MTcyOWY2MzZkM2UxYzk1YTgiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.KX5oCJxbsNrCqo3-9_HnD902IX-hDr4ATuw_FQ2oxUU6gAR-16sgt7Vw7CCHXzuffGbmYw23wytVS5bkv9s2Aw",
   "apps": [
     {
       "id": "action",
@@ -167,6 +167,56 @@
           "readme_html": "<h3>Productivity Monitor</h3>\n<p>Track machine runtime against shift quotas with real-time gauges.</p>\n<h4>What it does</h4>\n<ul><li>Live runtime gauges for each monitored machine, updated as sensor frames arrive.</li><li>Compares actual runtime against configurable shift quotas so operators can see</li></ul>\n<p>  at a glance whether a line is on pace.</p>\n<ul><li>Per-shift rollups you can review from the dashboard.</li></ul>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.0.0</strong> or newer.</li><li>At least one machine with a runtime/vibration sensor already reporting to the</li></ul>\n<p>  gateway.</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>\n<h4>Notes</h4>\n<p>Productivity Monitor is the shared data source for the <strong>OEE</strong> and <strong>Energy Monitor</strong> apps. Install it first if you plan to use either of those.</p>",
           "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Real-time runtime gauges with configurable shift quotas.\n- Per-shift runtime rollups.",
           "sig": "eyJ2IjoxLCJpZCI6InByb2R1Y3Rpdml0eSIsInZlcnNpb24iOiIxLjAuMCIsInNoYTI1NiI6IjI0YjQ1MDY2M2ZjMzE5ZTRkY2E2ZWY2YzdlM2IxZmY1MDdlMjA3NmZhOGJjNGEwMjBiMjllNTYwYmExNmIyNTMiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.vRe4ouRsHe4HNkYmw9Qbm_u5zEWChKvyuBg_rhVQGk-DATEFZdVsyTIfmxNW1GtU2hSp3KXKfr-wen5w1JMCDg"
+        }
+      ]
+    },
+    {
+      "id": "proxr-control",
+      "name": "ProXR Control",
+      "icon": "PX",
+      "subtitle": "Relay Control",
+      "description": "Build custom control panels for NCD ProXR relay controllers over DigiMesh — relays, timers, flashers and A/D inputs.",
+      "summary": "Build custom control panels for NCD ProXR relay controllers over DigiMesh — relays, timers, flashers and A/D inputs.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.4.0",
+          "models": [],
+          "released_at": 1787176399810,
+          "size": 1172085,
+          "sha256": "760cc3a892a46a4ed668dd1ced3df50d0401c24fb7eb2d064fb2a7f6fcabff6c",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/proxr-control-v1.0.0/proxr-control-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/proxr-control/1.0.0/README.md",
+          "readme_html": "<h3>ProXR Control</h3>\n<p>Build custom control panels for NCD <strong>ProXR</strong> relay controllers over DigiMesh — relays, timers, flashers and A/D inputs.</p>\n<h4>What it does</h4>\n<ul><li>Register each ProXR board once — name, DigiMesh address, relay count, analog</li></ul>\n<p>  input options — and the app reads the board's own feature map from it.</p>\n<ul><li><strong>Assemble control panels from cards</strong>: command buttons, relay indicators,</li></ul>\n<p>  relay grids, analog readouts and trend charts, and controller status. Drag a   card anywhere on the grid, or nudge and resize it a cell at a time. Gaps stay   where you leave them.</p>\n<ul><li>Panels show the controller's <strong>actual reported state</strong>, polled from the board,</li></ul>\n<p>  rather than what was last commanded.</p>\n<ul><li><strong>Controller detail</strong> — per-relay toggles with friendly names, bank actions,</li></ul>\n<p>  and timed &quot;on for N seconds&quot; commands. The controller switches the relay back   off itself, so a lost gateway cannot leave a load energized.</p>\n<ul><li><strong>Sequences</strong> — ordered command lists with delays between steps, for startup,</li></ul>\n<p>  shutdown, or test runs. Runnable from a panel button.</p>\n<ul><li><strong>Schedules</strong> — run a command or sequence at a time of day, described in plain</li></ul>\n<p>  English with the next three firings shown before you save. <strong>Run now</strong> proves a   schedule without waiting. Times follow the gateway's timezone, so 06:00 stays   06:00 across daylight-saving changes.</p>\n<ul><li><strong>Command console</strong> — pick any command, see the exact frame that will be</li></ul>\n<p>  transmitted, send it, and read the decoded reply.</p>\n<ul><li><strong>Activity</strong> — every operator command with the bytes exchanged, who sent it,</li></ul>\n<p>  and whether the controller answered.</p>\n<h4>Automations</h4>\n<p>ProXR Control participates in the gateway's inter-app bus, so its state can drive — and be driven by — other apps. Wiring is done by you in the platform; apps never reach into each other directly.</p>\n<p><strong>Publishes:</strong> controller status, relay state, analog input readings.</p>\n<p><strong>Provides:</strong> set a relay, set every relay in a bank, set a flasher, run a sequence.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.4.0</strong> or newer (the inter-app bus and DigiMesh peer I/O</li></ul>\n<p>  were added in 2.4.0).</p>\n<ul><li>One or more NCD ProXR relay controllers reachable over the gateway's DigiMesh</li></ul>\n<p>  radio.</p>\n<ul><li>Each controller's 64-bit DigiMesh address.</li></ul>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads platform data (read-only).</li><li><code>digimesh:transmit</code> — sends commands to ProXR controllers over the radio.</li><li><code>digimesh:subscribe</code> — receives controller replies and status.</li><li><code>events:publish</code> — publishes controller state on the inter-app bus.</li><li><code>actions:provide</code> — exposes relay, bank, flasher, and sequence commands for</li></ul>\n<p>  other apps' events to trigger.</p>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Register ProXR controllers over DigiMesh and read each board's feature map.\n- Custom control panels assembled from cards — command buttons, relay\n  indicators and grids, analog readouts and trend charts, controller status —\n  on a drag-and-drop grid.\n- Per-relay and per-bank control with friendly names, plus timed \"on for N\n  seconds\" commands the controller times itself.\n- Sequences: ordered command lists with delays, runnable from a panel button.\n- Schedules: a command or sequence at a time of day, described in plain English\n  with the next three firings previewed, evaluated in the gateway's timezone.\n- Command console with the exact transmitted frame and decoded reply.\n- Activity log of every operator command and controller response.\n- Inter-app bus support: publishes controller status, relay state and analog\n  input; provides relay, bank, flasher and sequence commands as actions.",
+          "sig": "eyJ2IjoxLCJpZCI6InByb3hyLWNvbnRyb2wiLCJ2ZXJzaW9uIjoiMS4wLjAiLCJzaGEyNTYiOiI3NjBjYzNhODkyYTQ2YTRlZDY2OGRkMWNlZDNkZjUwZDA0MDFjMjRmYjdlYjJkMDY0ZmIyYTdmNmZjYWJmZjZjIiwia2lkIjoibmNkLXBrZy0yMDI2YSJ9.gTNvhuOxd7CTC2XzURY1PqbaFHMTnjohaSDUHIXAUeaz3VzWCoyxRbxUz3q5EgZkkep6g2ov14pJONbsMuGJBg"
+        }
+      ]
+    },
+    {
+      "id": "tagoio",
+      "name": "TagoIO",
+      "icon": "TI",
+      "subtitle": "TagoIO",
+      "description": "Connect the gateway to TagoIO: manage TagoIO devices, report sensor telemetry, and configure sensors from the cloud.",
+      "summary": "Connect the gateway to TagoIO: manage TagoIO devices, report sensor telemetry, and configure sensors from the cloud.",
+      "license_required": false,
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "minPlatformVersion": "2.3.2",
+          "models": [],
+          "released_at": 1787176399807,
+          "size": 520347,
+          "sha256": "e59d10f92d8657d12e6c5b16997e025444398ee886098278d549e4ffd9842cdd",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/tagoio-v1.0.0/tagoio-1.0.0.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/tagoio/1.0.0/README.md",
+          "readme_html": "<h3>TagoIO</h3>\n<p>Connect the gateway to TagoIO: manage TagoIO devices, report sensor telemetry, and configure sensors from the cloud.</p>\n<h4>What it does</h4>\n<ul><li>Links the gateway to your <strong>TagoIO profile</strong> with a single token — no</li></ul>\n<p>  per-sensor setup in the cloud.</p>\n<ul><li>Every sensor you enable becomes its own <strong>TagoIO device</strong>, created for you and</li></ul>\n<p>  kept in sync. Rename or re-pair a sensor and the mapping follows it.</p>\n<ul><li>Streams telemetry to your TagoIO dashboards as readings arrive, so charts stay</li></ul>\n<p>  current without polling.</p>\n<ul><li><strong>Backfills gaps automatically.</strong> If the internet drops, readings are replayed</li></ul>\n<p>  afterwards with their original timestamps, so history lands in the right place   rather than bunching up as &quot;now&quot;.</p>\n<ul><li><strong>Two-way sensor configuration.</strong> Change a report interval, threshold, or mode</li></ul>\n<p>  from a TagoIO dashboard and the gateway delivers it over the radio the next   time that sensor checks in — then reports back what the sensor actually   accepted.</p>\n<ul><li><strong>Builds the TagoIO side for you.</strong> One button creates the dashboard, widget,</li></ul>\n<p>  analysis, and action needed for cloud configuration, and keeps them current as   you enable more sensors or upgrade the app.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.3.2</strong> or newer.</li><li>A TagoIO account, and a <strong>profile token</strong> for the profile you want the gateway</li></ul>\n<p>  to report into.</p>\n<ul><li>One or more NCD wireless sensors paired with the gateway.</li></ul>\n<h4>Getting started</h4>\n<ol><li><strong>Connection</strong> — paste your TagoIO profile token and pick your region. The</li></ol>\n<p>   app verifies the token and shows which profile it belongs to.</p>\n<ol><li><strong>Devices</strong> — enable the sensors you want in TagoIO. Each one is created as a</li></ol>\n<p>   TagoIO device and begins reporting.</p>\n<ol><li><strong>Configuration</strong> <em>(optional)</em> — press <strong>Set up in TagoIO</strong> to build the</li></ol>\n<p>   cloud-side dashboard for changing sensor settings from TagoIO.</p>\n<ol><li><strong>Diagnostics</strong> — confirms what has been delivered and surfaces any errors</li></ol>\n<p>   from the TagoIO API.</p>\n<p>Several gateways can report into one TagoIO profile: each is namespaced by a prefix assigned at install, so their device serials never collide.</p>\n<h4>Configuration</h4>\n<ul><li><strong>Region</strong> — the TagoIO region your account lives in.</li><li><strong>Backfill lookback</strong> (default 24 h) — how far back to replay after an outage.</li></ul>\n<p>  A longer window recovers more history; a shorter one returns to live sooner.</p>\n<ul><li><strong>Battery and signal reporting</strong> — optional. Every variable in every push</li></ul>\n<p>  consumes one TagoIO data record, so these can be switched off to reduce   account usage.</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li><li><code>telemetry:subscribe</code> — receives live sensor frames to push as they arrive.</li><li><code>sensor:config</code> — applies setting changes to sensors over the radio.</li><li><code>net:external</code> — reaches the TagoIO API and telemetry endpoints.</li><li><code>secrets</code> — stores your TagoIO tokens encrypted at rest.</li></ul>",
+          "changelog": "# Changelog\n\n## 1.0.0\n\n- Initial release.\n- Connect a gateway to a TagoIO profile with a single profile token.\n- Enable sensors individually; each becomes a TagoIO device, created and kept in\n  sync automatically.\n- Live telemetry reporting, with automatic backfill of any gap using the\n  readings' original timestamps.\n- Two-way sensor configuration: change report intervals, thresholds and modes\n  from a TagoIO dashboard, applied over the radio and acknowledged only once the\n  sensor confirms them.\n- **Set up in TagoIO** builds the cloud-side dashboard, widget, analysis and\n  action for configuration, and keeps them current as sensors are enabled.\n- Optional battery and signal reporting, so account data usage can be reduced.",
+          "sig": "eyJ2IjoxLCJpZCI6InRhZ29pbyIsInZlcnNpb24iOiIxLjAuMCIsInNoYTI1NiI6ImU1OWQxMGY5MmQ4NjU3ZDEyZTZjNWIxNjk5N2UwMjU0NDQzOThlZTg4NjA5ODI3OGQ1NDllNGZmZDk4NDJjZGQiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.45N8RKh7HJ__dUDpupGO7G6HrLamvjvc55SRfZqOSQjpQKm7yHASs-dfP6Mbqu5QSNGk7VUx2ogEsEY1sL7TBg"
         }
       ]
     }

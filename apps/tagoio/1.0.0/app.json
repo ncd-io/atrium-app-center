@@ -1,0 +1,15 @@
+{
+  "id": "tagoio",
+  "name": "TagoIO",
+  "version": "1.0.0",
+  "description": "Connect the gateway to TagoIO: manage TagoIO devices, report sensor telemetry, and configure sensors from the cloud.",
+  "minPlatformVersion": "2.3.2",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": { "postInstall": "backend/hooks/post-install.js" },
+  "capabilities": ["data:read", "secrets", "net:external", "telemetry:subscribe", "sensor:config"],
+  "ui": { "icon": "TI", "subtitle": "TagoIO" }
+}
