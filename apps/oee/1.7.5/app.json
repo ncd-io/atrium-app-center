@@ -1,0 +1,22 @@
+{
+  "id": "oee",
+  "name": "OEE",
+  "version": "1.7.5",
+  "description": "Standalone Overall Equipment Effectiveness tracking. Define machines and shifts, then drive Availability, Performance, and Quality from sensors or manual entry — no other app required.",
+  "minPlatformVersion": "2.3.0",
+  "models": ["EG5120", "EG5100"],
+  "entries": {
+    "api": "backend/api/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read"
+  ],
+  "ui": {
+    "icon": "OE",
+    "subtitle": "Overall Equipment Effectiveness"
+  }
+}
