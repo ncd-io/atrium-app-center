@@ -1,0 +1,139 @@
+{
+  "id": "proxr-control",
+  "name": "ProXR Control",
+  "version": "1.0.1",
+  "description": "Build custom control panels for NCD ProXR relay controllers over DigiMesh — relays, timers, flashers and A/D inputs.",
+  "minPlatformVersion": "2.4.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": { "postInstall": "backend/hooks/post-install.js" },
+  "capabilities": [
+    "data:read",
+    "digimesh:transmit",
+    "digimesh:subscribe",
+    "events:publish",
+    "actions:provide"
+  ],
+  "provides": {
+    "events": [
+      {
+        "topic": "controller.status",
+        "title": "Controller status changed",
+        "description": "Published each time a ProXR controller is polled, and re-asserted periodically. Tracked separately per controller.",
+        "keyed_by": "controller",
+        "payload": {
+          "controller_id": "int",
+          "controller_name": "string",
+          "address": "string",
+          "status": "enum:online,offline",
+          "online": "bool",
+          "connected": "bool",
+          "relay_count": "int",
+          "relays_on": "int",
+          "last_error": "string?"
+        }
+      },
+      {
+        "topic": "relay.state",
+        "title": "Relay switched",
+        "description": "The current state of one relay, as the controller reports it. Tracked separately per relay, so each relay's automation is independent.",
+        "keyed_by": "controller and relay number",
+        "payload": {
+          "controller_id": "int",
+          "controller_name": "string",
+          "relay": "int",
+          "relay_label": "string?",
+          "state": "enum:on,off",
+          "on": "bool"
+        }
+      },
+      {
+        "topic": "analog.input",
+        "title": "Analog input read",
+        "description": "An A/D input's latest value, scaled and labelled the way the panel cards show it. Published on the controller's analog logging interval. Tracked separately per input.",
+        "keyed_by": "controller and analog input",
+        "payload": {
+          "controller_id": "int",
+          "controller_name": "string",
+          "channel": "int",
+          "label": "string?",
+          "raw": "int",
+          "value": "number",
+          "unit": "string?",
+          "resolution": "int"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "relay.set",
+        "title": "Set relay state",
+        "description": "Switch one relay on a registered ProXR controller. Give an auto-off time and the controller's own duration timer releases the load, even if this gateway stops answering.",
+        "params": [
+          {
+            "name": "controller_id",
+            "type": "int",
+            "title": "Controller",
+            "options_from": "GET /bus/options/controllers"
+          },
+          { "name": "relay", "type": "int", "title": "Relay number", "placeholder": "1" },
+          { "name": "state", "type": "enum:on,off", "title": "State" },
+          {
+            "name": "seconds",
+            "type": "int",
+            "title": "Switch off again after (seconds)",
+            "optional": true,
+            "placeholder": "leave empty to stay on"
+          }
+        ]
+      },
+      {
+        "id": "bank.set",
+        "title": "Set every relay in a bank",
+        "description": "Switch a whole bank of eight relays on or off. Bank 0 is every bank on the board.",
+        "params": [
+          {
+            "name": "controller_id",
+            "type": "int",
+            "title": "Controller",
+            "options_from": "GET /bus/options/controllers"
+          },
+          { "name": "bank", "type": "int", "title": "Bank (0 = all)", "placeholder": "0" },
+          { "name": "state", "type": "enum:on,off", "title": "State" }
+        ]
+      },
+      {
+        "id": "flasher.set",
+        "title": "Set flasher state",
+        "description": "Start or stop one of the controller's flashers.",
+        "params": [
+          {
+            "name": "controller_id",
+            "type": "int",
+            "title": "Controller",
+            "options_from": "GET /bus/options/controllers"
+          },
+          { "name": "flasher", "type": "int", "title": "Flasher (1-16)", "placeholder": "1" },
+          { "name": "state", "type": "enum:on,off", "title": "State" }
+        ]
+      },
+      {
+        "id": "sequence.run",
+        "title": "Run a sequence",
+        "description": "Run a sequence built on this app's Sequences page, step by step, on the controller it belongs to.",
+        "params": [
+          {
+            "name": "sequence_id",
+            "type": "int",
+            "title": "Sequence",
+            "options_from": "GET /bus/options/sequences"
+          }
+        ]
+      }
+    ]
+  },
+  "ui": { "icon": "PX", "subtitle": "Relay Control" }
+}
