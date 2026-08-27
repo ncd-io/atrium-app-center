@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "generated_at": 1787762903954,
-  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODc3NjI5MDM5NTQsInNoYTI1NiI6IjcyZmEyMDgwYzcwOGVlYjkzYTljYzVhMDVkMWFhNjEwODJkYzMyNGRhZTdlM2NjZDk3MDNmYTdjNGM4M2Y3YWYiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.KrHWYtHcy8eqCnXqY9veltz4VVMLeyYvO6ltJcCaHjEu2qkNEdA4vd4nbPWKwPxnQ5ZYbz_zoXX3t50hiMq8Cw",
+  "generated_at": 1787854921959,
+  "sig": "eyJ2IjoxLCJnZW5lcmF0ZWRfYXQiOjE3ODc4NTQ5MjE5NTksInNoYTI1NiI6Ijk1MjNjODg5NzU4NjIwMTYxYzVjOTA3YmJiYTNmOWYxZjJhYmYzODdlNmFhNzIzOTkxYzk1N2JkNTdkNzg1NDMiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.UfBid33ZJXEabcqzvgr0qPk-kLzMeWPhPBNuMOlxqXKYNNEAt1jgO4VwxuSv4UIWhWsUeipqamvTPeVUJi_0DA",
   "apps": [
     {
       "id": "action",
@@ -124,12 +124,28 @@
       "id": "oee",
       "name": "OEE",
       "icon": "OE",
-      "subtitle": null,
-      "description": "Overall Equipment Effectiveness tracking and analysis.",
-      "summary": "Overall Equipment Effectiveness tracking and analysis.",
+      "subtitle": "Overall Equipment Effectiveness",
+      "description": "Standalone Overall Equipment Effectiveness tracking. Define machines and shifts, then drive Availability, Performance, and Quality from sensors or manual entry — no other app required.",
+      "summary": "Standalone Overall Equipment Effectiveness tracking. Define machines and shifts, then drive Availability, Performance, and Quality from sensors or manual entry — no other app required.",
       "license_required": false,
-      "latest": "1.0.0",
+      "latest": "1.7.5",
       "versions": [
+        {
+          "version": "1.7.5",
+          "minPlatformVersion": "2.3.0",
+          "models": [
+            "EG5120",
+            "EG5100"
+          ],
+          "released_at": 1787854912154,
+          "size": 1214989,
+          "sha256": "fc62f196e13f0728a6e2fb206276b85226c2de27cb7174dc758a0c50a1e54488",
+          "tarball_url": "https://github.com/ncd-io/atrium-app-center/releases/download/oee-v1.7.5/oee-1.7.5.tar.gz",
+          "readme_url": "https://raw.githubusercontent.com/ncd-io/atrium-app-center/main/apps/oee/1.7.5/README.md",
+          "readme_html": "<h3>OEE</h3>\n<p>Standalone Overall Equipment Effectiveness tracking. Define your machines and shifts, then drive <strong>Availability</strong>, <strong>Performance</strong>, and <strong>Quality</strong> from sensors or manual entry — no other app required.</p>\n<h4>What it does</h4>\n<ul><li>Organize your plant into <strong>machines</strong>, group them into <strong>views</strong> (lines,</li></ul>\n<p>  cells, areas), and see a live OEE score for each machine, view, and the whole   plant.</p>\n<ul><li>Each machine has three independently configurable slots — <strong>Availability</strong>,</li></ul>\n<p>  <strong>Performance</strong>, and <strong>Quality</strong> — and each slot can be driven by a <strong>sensor</strong>   (run-state signal, uptime counter, or parts counter) or by <strong>manual entry</strong>.</p>\n<ul><li>Define shifts with start/end times, weekdays, and a scheduled length; OEE is</li></ul>\n<p>  measured against elapsed production time so far in the shift.</p>\n<ul><li><strong>Downtime reason codes</strong> with auto-detected stops: the app surfaces stops it</li></ul>\n<p>  measured from the Availability sensor and lets an operator assign a reason to   each, then charts the top loss reasons as a <strong>Pareto</strong>.</p>\n<ul><li><strong>Reject reason codes</strong>: assign reasons to sensor-counted rejects (the sensor</li></ul>\n<p>  count stays authoritative) or log rejects by hand, with an &quot;unclassified&quot;   bucket and a reject Pareto.</p>\n<ul><li>Per-machine <strong>OEE target</strong> drives consistent green/amber/red coloring across</li></ul>\n<p>  every score in the app.</p>\n<ul><li>Set the machine's <strong>ideal rate</strong> in parts/min (stored as an ideal cycle time);</li></ul>\n<p>  Performance is measured against it.</p>\n<h4>Requirements</h4>\n<ul><li>Atrium platform <strong>2.3.0</strong> or newer.</li><li>Runs on both <strong>EG5120</strong> and <strong>EG5100</strong>.</li><li>No other app required. OEE manages its own machine and shift configuration and</li></ul>\n<p>  reads sensor telemetry directly.</p>\n<h4>Configuration</h4>\n<ul><li><strong>Machines</strong> — add a machine, give it an ideal rate (parts/min) and an OEE</li></ul>\n<p>  target, and assign it to a view. Configure each of the three OEE slots for a   sensor metric or manual entry. State-based Availability inputs support an   <strong>active-low</strong> preset for common pull-up wiring.</p>\n<ul><li><strong>Shifts</strong> — set start/end times and active weekdays. The editor shows the</li></ul>\n<p>  configured timezone, the computed shift duration, and warns on a shift that   wraps past midnight.</p>\n<ul><li><strong>In-app help</strong> — a <strong>? Help</strong> button explains OEE in plain language, and each</li></ul>\n<p>  slot offers wiring guidance for what to connect.</p>\n<h4>Permissions</h4>\n<ul><li><code>data:read</code> — reads telemetry from the platform database (read-only).</li></ul>",
+          "changelog": "# Changelog\n\n## 1.7.5\n\n- Fixed the **Shift Time Budget** strip tooltips, which were clipped by the\n  strip's rounded-corner mask and never appeared on hover. The segment labels\n  (Run / Planned stop / Unplanned stop / Unaccounted, with minutes) now show.\n\n## 1.7.4\n\n- **Standalone.** OEE no longer depends on the Productivity Monitor app. It owns\n  its own machine and shift configuration and reads sensor telemetry directly,\n  so it can be installed on its own. (`requires: [\"productivity\"]` is dropped;\n  minimum platform is now 2.3.0.)\n- **Data freshness.** Each machine estimates its own reporting cadence and flags\n  a node as stale after several missed intervals, with a \"last seen Xm ago\"\n  caption and a three-state status dot (running / stopped / unknown). Stale\n  machines are surfaced in the view and fleet roll-ups.\n- **Consistent OEE coloring.** A per-machine OEE **target** drives green/amber/red\n  coloring uniformly across the KPI cards, view tabs, machine donuts, and detail\n  panel, so the same score never shows two different colors.\n- **Cycle-time entry** is idempotent: saving an unchanged parts/min value no\n  longer drifts the stored ideal cycle time through rounding.\n- Counter handling hardened against out-of-order and duplicate mesh frames — mid-\n  range dips are ignored and only true resets re-baseline, so parts and rejects\n  aren't double-counted.\n\n## 1.7.0\n\n- **Downtime reason codes** with auto-detected stops from the Availability\n  sensor, and a downtime **Pareto** of the top loss reasons.\n- **Reject reason codes**: assign reasons to sensor-counted rejects without\n  changing the authoritative count, plus an \"unclassified\" bucket and a reject\n  Pareto. Paretos update live as reasons are logged.\n- **Guided setup**: onboarding empty state, per-machine setup/plausibility\n  health chips, in-modal wiring help, an active-low preset for state-based\n  Availability inputs, and a plain-language **? Help** guide.\n- **Per-machine reset** (\"measure from now\") to re-baseline accumulating sensor\n  counters for a clean run.\n- Shift editor shows timezone, computed duration, and warns on midnight wrap.\n\n## 1.0.0\n\n- Initial release.\n- Availability / performance / quality OEE calculation with trend history.",
+          "sig": "eyJ2IjoxLCJpZCI6Im9lZSIsInZlcnNpb24iOiIxLjcuNSIsInNoYTI1NiI6ImZjNjJmMTk2ZTEzZjA3MjhhNmUyZmIyMDYyNzZiODUyMjZjMmRlMjdjYjcxNzRkYzc1OGEwYzUwYTFlNTQ0ODgiLCJraWQiOiJuY2QtcGtnLTIwMjZhIn0.rr3XmYZurzAvKMVqDiRXmQ54wjm4CW13E6DMXjV46k1om6MMrDsOOkZHdP99AuPy0aH-ev9_5bxgH3GIYGW9CA"
+        },
         {
           "version": "1.0.0",
           "minPlatformVersion": "2.0.0",
