@@ -1,0 +1,24 @@
+{
+  "id": "site-survey",
+  "name": "Site Survey",
+  "version": "1.1.0",
+  "description": "Commission a gateway on-site: every sensor's mesh link and the RF noise it competes with, in one colour-coded list.",
+  "minPlatformVersion": "2.6.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read",
+    "radio:mesh",
+    "radio:scan"
+  ],
+  "ui": {
+    "icon": "SS",
+    "subtitle": "Mesh Commissioning"
+  }
+}

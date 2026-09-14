@@ -1,0 +1,236 @@
+{
+  "id": "machine-health",
+  "name": "AssetPulse",
+  "version": "1.7.0",
+  "description": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
+  "minPlatformVersion": "2.4.0",
+  "models": ["EG5120"],
+  "license": {
+    "required": true
+  },
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "radio:fft",
+    "notify:email",
+    "net:external",
+    "secrets",
+    "mqtt:client",
+    "events:publish",
+    "actions:provide",
+    "mcp:tools"
+  ],
+  "provides": {
+    "events": [
+      {
+        "topic": "asset.health",
+        "title": "Asset health changed",
+        "description": "The current condition of one asset — severity band, running state, and open threshold alerts. Re-evaluated on every new capture, alert, acknowledgement, service confirmation and AI report, and re-asserted periodically.",
+        "keyed_by": "asset",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "machine_type": "string?",
+          "criticality": "enum:low,medium,high,unspecified",
+          "health": "enum:healthy,watch,attention,unknown",
+          "severity": "int?",
+          "severity_label": "enum:optimal,good,monitor,warning,critical,unknown",
+          "severity_source": "enum:ai,engine,none",
+          "machine_state": "enum:running,stopped,unknown",
+          "alert_status": "enum:good,warning,critical",
+          "open_alerts": "int",
+          "assessment_ts": "int?",
+          "assessment": "string?",
+          "recommended_action": "string?"
+        }
+      },
+      {
+        "topic": "telemetry.threshold",
+        "title": "Metric crossed a threshold",
+        "description": "Where one metric on one monitoring point currently stands against its Warning / Critical thresholds. Use warning_breached / critical_breached for \"at this level or worse\" (they stay true as the reading escalates); use metric_state only when you want one band exclusively. Tracked separately per monitoring point and metric.",
+        "keyed_by": "monitoring point + metric",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "monitoring_point_id": "int",
+          "monitoring_point": "string",
+          "sensor_id": "string",
+          "probe": "string",
+          "metric": "enum:Temperature,RMS Acceleration,Acceleration Max,Velocity,X Peak Frequencies,Y Peak Frequencies,Z Peak Frequencies",
+          "warning_breached": "enum:true,false",
+          "critical_breached": "enum:true,false",
+          "metric_state": "enum:ok,warning,critical",
+          "graph_id": "string",
+          "value": "number?",
+          "warning_threshold": "number?",
+          "critical_threshold": "number?"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "waveform.capture",
+        "title": "Capture a vibration waveform",
+        "description": "Ask a monitoring point's sensor for a raw waveform now. The capture runs through the severity engine like any other, so the asset's health is re-evaluated from it.",
+        "params": [
+          {
+            "name": "monitoring_point_id",
+            "type": "int",
+            "title": "Monitoring point",
+            "options_from": "GET /monitoring-point-options"
+          }
+        ]
+      },
+      {
+        "id": "alerts.acknowledge",
+        "title": "Acknowledge threshold alerts",
+        "description": "Mark an asset's open threshold alerts acknowledged, clearing its alert badge and re-arming the alert so a continuing breach fires fresh.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Asset",
+            "options_from": "GET /asset-options"
+          },
+          {
+            "name": "level",
+            "type": "enum:any,warning,critical",
+            "title": "Level to acknowledge",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "notify.send",
+        "title": "Send asset health email",
+        "description": "Send this asset's configured health email now, using its own recipients, templates and latest AI report.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Asset",
+            "options_from": "GET /asset-options"
+          }
+        ]
+      },
+      {
+        "id": "thresholds.set",
+        "title": "Set a telemetry alarm threshold",
+        "description": "Set the Warning and Critical alarm limits on one monitoring point's metric, and what each level does when it fires. Absolute, not a nudge: it writes the values given, so running it twice leaves the same configuration. **Units follow the metric** — temperature is °C, rms_acc and max_acc are g, velocity is mm/s, and the x_peaks / y_peaks / z_peaks metrics are Hz. Leave `warning` or `critical` empty to CLEAR that line rather than keep it: an alarm with only a critical level is expressed by setting critical and leaving warning empty. Critical must be at or above warning, because an alert fires at the highest breached level — a critical line underneath the warning line would make the warning level unreachable. `enabled` false switches the alarm off while keeping its numbers and actions, so turning it back on restores them; a disabled threshold is evaluated against nothing and fires nothing. The four action flags are per level: `warn_notify` / `crit_notify` send the asset's health email when that level fires, and `warn_waveform` / `crit_waveform` request a vibration capture. Omit a flag to keep its current setting — saving values alone never switches off an action already attached to a level. Read the current limits first with the asset_thresholds read, and note that it reports thresholds that are configured but disabled.",
+        "params": [
+          {
+            "name": "monitoring_point_id",
+            "type": "int",
+            "title": "Monitoring point",
+            "options_from": "GET /monitoring-point-options"
+          },
+          {
+            "name": "graph_id",
+            "type": "enum:temperature,rms_acc,max_acc,velocity,x_peaks,y_peaks,z_peaks",
+            "title": "Metric"
+          },
+          {
+            "name": "warning",
+            "type": "number",
+            "title": "Warning level (empty clears it)",
+            "optional": true
+          },
+          {
+            "name": "critical",
+            "type": "number",
+            "title": "Critical level (empty clears it)",
+            "optional": true
+          },
+          {
+            "name": "enabled",
+            "type": "enum:true,false",
+            "title": "Alarm enabled (default true)",
+            "optional": true
+          },
+          {
+            "name": "warn_notify",
+            "type": "enum:true,false",
+            "title": "Warning sends the health email",
+            "optional": true
+          },
+          {
+            "name": "warn_waveform",
+            "type": "enum:true,false",
+            "title": "Warning captures a waveform",
+            "optional": true
+          },
+          {
+            "name": "crit_notify",
+            "type": "enum:true,false",
+            "title": "Critical sends the health email",
+            "optional": true
+          },
+          {
+            "name": "crit_waveform",
+            "type": "enum:true,false",
+            "title": "Critical captures a waveform",
+            "optional": true
+          }
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "id": "asset_roster",
+        "title": "List AssetPulse assets",
+        "description": "Every machine configured in AssetPulse, as `{value, label}` pairs where **value is the asset_id** that every other AssetPulse read and action takes, and label is the asset's name with its machine type in parentheses. Start here when you know a machine by name but not by id. This is the roster only — for an asset's current condition read the retained `machine-health/asset.health` bus state, and for how the machine is built call asset_setup.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-options"
+        },
+        "params": []
+      },
+      {
+        "id": "asset_setup",
+        "title": "Read one asset's mechanical setup",
+        "description": "How one machine is physically built and configured, as the customer entered it when setting the asset up. This is the interpretation context for the asset's vibration data and is available nowhere else — the bus publishes AssetPulse's assessments, never the configuration behind them. Returns the asset's machine type, criticality, ISO 10816 machine group, power band and rigid/flexible foundation; `drivetrain`, the component chain in running order (motor, gearbox, pump, fan, blower, coupling, belt) each with the `params` that forcing frequencies are computed from — motor `poles`, gearbox `gear_ratio` and per-stage `teeth`, pump `vanes`, fan and blower `blades`, belt `pulley_ratio`; `monitoring_points`, one per sensor-and-probe pair, each with the drivetrain component it is mounted on, its `mount_location` (drive_end, non_drive_end, inboard, outboard, casing) and axis `orientation`, the `metric_keys` under which this point's readings are stored in platform telemetry, and its `bearings` with part number, geometry and `fault_orders` — BPFI, BPFO, BSF and FTF as multiples of shaft rotation rate, so multiply by rpm/60 to get Hz; and `speed`, whose mode is fixed, vfd or tach. Effective shaft speed is resolved in this order: a fixed asset's rpm_fixed, else the RPM measured alongside the capture, else the midpoint of rpm_min and rpm_max for a VFD, else 1800 as a last resort. Read this before interpreting an FFT or a peak-frequency reading on this asset — without the bearing fault orders and the shaft speed, a peak is just a number. Configuration only: no readings, captures, assessments or alerts.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-setup/:asset_id"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "type": "int",
+            "description": "The AssetPulse asset id, from asset_roster or from an `asset_id` field in a `machine-health/asset.health` or `machine-health/telemetry.threshold` bus payload."
+          }
+        ]
+      },
+      {
+        "id": "asset_thresholds",
+        "title": "Read one asset's alarm thresholds",
+        "description": "Every telemetry alarm threshold configured on one asset, per monitoring point and per graph — including the ones that are switched off, each carrying its own `enabled` flag. `active_total` and `configured_total` give the headline: a point can hold Warning and Critical limits that fire nothing because the operator disabled them, and that is a finding worth reporting rather than silence. Each threshold also says what its levels do when they fire: `warn_notify` / `crit_notify` send the asset's health email, `warn_waveform` / `crit_waveform` trigger a waveform capture. `graph_ids` lists the seven graphs a threshold can be set on — temperature, rms_acc, max_acc, velocity, x_peaks, y_peaks, z_peaks; a graph absent from a point's `thresholds` map has never had limits set. Prefer this over the retained `machine-health/telemetry.threshold` bus state whenever the question is what the limits ARE, whether they are live, or what they would do: that state covers only points that have recently reported, drops a threshold's values once it is switched off, and never carries the notify or waveform actions.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-alarms/:asset_id"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "type": "int",
+            "description": "The AssetPulse asset id, from asset_roster."
+          }
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "icon": "AP",
+    "subtitle": "Machine Health"
+  }
+}
