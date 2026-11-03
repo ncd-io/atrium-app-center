@@ -1,0 +1,670 @@
+{
+  "id": "machine-health",
+  "name": "AssetPulse",
+  "version": "1.9.11",
+  "description": "Predictive maintenance for rotating equipment: set up assets, monitor vibration, and get plain-language health insights.",
+  "minPlatformVersion": "2.4.0",
+  "models": ["EG5120", "container"],
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "radio:fft",
+    "notify:email",
+    "net:external",
+    "secrets",
+    "mqtt:client",
+    "events:publish",
+    "actions:provide",
+    "mcp:tools"
+  ],
+  "provides": {
+    "events": [
+      {
+        "topic": "asset.health",
+        "title": "Asset health changed",
+        "description": "The current condition of one asset — severity band, running state, and open threshold alerts. Re-evaluated on every new capture, alert, acknowledgement, service confirmation and AI report, and re-asserted periodically.",
+        "keyed_by": "asset",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "machine_type": "string?",
+          "criticality": "enum:low,medium,high,unspecified",
+          "health": "enum:healthy,watch,attention,unknown",
+          "severity": "int?",
+          "severity_label": "enum:optimal,good,monitor,warning,critical,unknown",
+          "severity_source": "enum:ai,engine,none",
+          "machine_state": "enum:running,stopped,unknown",
+          "alert_status": "enum:good,warning,critical",
+          "open_alerts": "int",
+          "assessment_ts": "int?",
+          "assessment": "string?",
+          "recommended_action": "string?"
+        }
+      },
+      {
+        "topic": "telemetry.threshold",
+        "title": "Metric crossed a threshold",
+        "description": "Where one metric on one monitoring point currently stands against its Warning / Critical thresholds. Use warning_breached / critical_breached for \"at this level or worse\" (they stay true as the reading escalates); use metric_state only when you want one band exclusively. Tracked separately per monitoring point and metric.",
+        "keyed_by": "monitoring point + metric",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "monitoring_point_id": "int",
+          "monitoring_point": "string",
+          "sensor_id": "string",
+          "probe": "string",
+          "metric": "enum:Temperature,RMS Acceleration,Acceleration Max,Velocity,X Peak Frequencies,Y Peak Frequencies,Z Peak Frequencies",
+          "warning_breached": "enum:true,false",
+          "critical_breached": "enum:true,false",
+          "metric_state": "enum:ok,warning,critical",
+          "graph_id": "string",
+          "value": "number?",
+          "warning_threshold": "number?",
+          "critical_threshold": "number?"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "asset.create",
+        "title": "Create or update a monitored asset",
+        "description": "Create a machine in AssetPulse from a full description — its drivetrain, the sensors watching it, and the bearings under them — or converge one that already exists onto that description. **Read the `asset_vocabulary` read first**: it enumerates every accepted value and carries a worked example, and a field outside that vocabulary is refused with a message naming the valid values. Takes one parameter, `spec`, an object (a JSON string is also accepted) with `name` plus any of the asset fields, `components[]` — the drivetrain in power-flow order, motor first — and `monitoring_points[]`, one per sensor PROBE, each optionally carrying a `bearing`. Pick device_ids with the `available_sensors` read and resolve bearing part numbers with `bearing_lookup` rather than typing fault orders by hand. **The asset is identified by its `name`, case-insensitively.** A new name creates; a name already in AssetPulse updates that machine, so the action is absolute and idempotent — re-sending the same spec converges and changes nothing the second time. It NEVER DELETES: components and monitoring points in the spec are matched and updated or added, and anything already on the asset but absent from the spec is left alone, because deleting a monitoring point would discard the learned vibration baseline and every alarm limit tuned on it. Removing a point or a component is done in the AssetPulse UI. **How an existing component is recognised, when you re-send an asset to add to it:** by `component_id` if you supply one (take it from asset_setup — this is exact and is what to use when adding a component to a chain you did not just build), else by component type and `name`, else by type in order. Position is NOT identity: inserting a fan in the middle re-numbers everything after it, and matching on position would read those as new components and duplicate the rest of the drivetrain. `components[]` is the drivetrain in full, in running order — its order is written as sent, so re-sending it re-orders the chain, and any component you leave out is kept but moved to the end and reported in `warnings`. Two things decide whether the asset is diagnosable rather than merely monitored, and both are worth asking the person about: shaft speed — every bearing and kinematic fault frequency is a multiple of it, and a `fixed` asset without `rpm_fixed` is refused rather than silently scored at the engine's 1800 rpm fallback — and `component_index` on each monitoring point, which ties that sensor to the piece of machinery it is bolted to. Sets no alarm limits: follow with `thresholds.seed`. Returns the asset_id and every monitoring_point_id created, so no further read is needed to act on them.",
+        "params": [
+          {
+            "name": "spec",
+            "type": "json",
+            "title": "Asset specification",
+            "placeholder": "{\"name\": \"Coolant Pump 3\", \"machine_type\": \"pump\", \"speed_mode\": \"fixed\", \"rpm_fixed\": 1750, \"components\": [], \"monitoring_points\": []}"
+          }
+        ],
+        "schema": {
+          "type": "object",
+          "properties": {
+            "spec": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Identifies the asset. Matched case-insensitively: a name already in AssetPulse updates that machine rather than creating a second one."
+                },
+                "machine_type": {
+                  "type": "string",
+                  "enum": [
+                    "motor",
+                    "pump",
+                    "fan",
+                    "gearbox",
+                    "compressor",
+                    "blower",
+                    "other"
+                  ]
+                },
+                "criticality": {
+                  "type": "string",
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "description": "How much this machine's failure costs. Reported on the bus; does not change scoring."
+                },
+                "iso_machine_group": {
+                  "type": "string",
+                  "enum": [
+                    "I",
+                    "II",
+                    "III",
+                    "IV"
+                  ],
+                  "description": "Sets the ISO 10816 velocity zones the severity engine grades against; defaults to II. Size AND foundation both matter — a large machine on a flexible foundation is IV, not III."
+                },
+                "power_band": {
+                  "type": "string",
+                  "enum": [
+                    "<15kW",
+                    "15-75kW",
+                    "75-300kW",
+                    ">300kW"
+                  ]
+                },
+                "foundation": {
+                  "type": "string",
+                  "enum": [
+                    "rigid",
+                    "flexible"
+                  ]
+                },
+                "speed_mode": {
+                  "type": "string",
+                  "enum": [
+                    "fixed",
+                    "vfd",
+                    "tach"
+                  ],
+                  "description": "fixed needs rpm_fixed; vfd needs rpm_min and rpm_max; tach means a sensor reports it."
+                },
+                "rpm_fixed": {
+                  "type": "number",
+                  "description": "Running rpm from the nameplate. REQUIRED when speed_mode is fixed — without a shaft speed every bearing and kinematic frequency is wrong."
+                },
+                "rpm_min": {
+                  "type": "number",
+                  "description": "With rpm_max, the ends of a VFD's speed range."
+                },
+                "rpm_max": {
+                  "type": "number"
+                },
+                "rpm_source_device_id": {
+                  "type": "string",
+                  "description": "For speed_mode tach: the device id reporting speed."
+                },
+                "rpm_source_metric": {
+                  "type": "string",
+                  "description": "For speed_mode tach: the readings.metric key carrying rpm."
+                },
+                "notes": {
+                  "type": "string"
+                },
+                "auto_generate_reports": {
+                  "type": "boolean",
+                  "description": "Generate an AI report on each new assessment. Needs AI Reports configured on this gateway."
+                },
+                "components": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "component_type": {
+                        "type": "string",
+                        "enum": [
+                          "motor",
+                          "gearbox",
+                          "pump",
+                          "fan",
+                          "blower",
+                          "coupling",
+                          "belt",
+                          "other"
+                        ],
+                        "description": "What this piece of machinery is."
+                      },
+                      "component_id": {
+                        "type": "integer",
+                        "description": "The id of a component that already exists on this asset, from an asset_setup read. Supply it when re-sending an asset you did not just create: it identifies the component exactly, so adding or re-ordering components cannot be mistaken for creating new ones. Omit for a component you are adding."
+                      },
+                      "name": {
+                        "type": "string",
+                        "description": "Optional label, e.g. \"Main drive motor\"."
+                      },
+                      "drivetrain_order": {
+                        "type": "integer",
+                        "description": "0-based position in the chain. Defaults to the array index, which is usually right."
+                      },
+                      "params": {
+                        "type": "object",
+                        "description": "The kinematic parameters of THIS component type, and only those: motor {poles}, gearbox {gear_ratio, teeth}, pump {vanes}, fan/blower {blades}, belt {pulley_ratio}. coupling and other take none. An unrecognised key is reported as a warning and ignored."
+                      }
+                    },
+                    "required": [
+                      "component_type"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "The drivetrain in power-flow order, motor first. Every kinematic fault frequency comes from these."
+                },
+                "monitoring_points": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "device_id": {
+                        "type": "string",
+                        "description": "The sensor's device id, from the available_sensors read. Lower-case."
+                      },
+                      "probe": {
+                        "type": "string",
+                        "enum": [
+                          "1",
+                          "2"
+                        ],
+                        "description": "Which probe of that sensor. \"1\" for a single-probe sensor (types 110, 114); \"1\" or \"2\" for a dual-probe sensor (type 111)."
+                      },
+                      "label": {
+                        "type": "string",
+                        "description": "What a person calls this location, e.g. \"Motor DE\"."
+                      },
+                      "mount_location": {
+                        "type": "string",
+                        "enum": [
+                          "drive_end",
+                          "non_drive_end",
+                          "inboard",
+                          "outboard",
+                          "casing",
+                          "other"
+                        ],
+                        "description": "drive_end / non_drive_end are the motor's ends; inboard / outboard the driven machine's; casing anything else."
+                      },
+                      "orientation": {
+                        "type": "object",
+                        "properties": {
+                          "x": {
+                            "type": "string",
+                            "enum": [
+                              "radial_h",
+                              "radial_v",
+                              "axial",
+                              "tangential"
+                            ]
+                          },
+                          "y": {
+                            "type": "string",
+                            "enum": [
+                              "radial_h",
+                              "radial_v",
+                              "axial",
+                              "tangential"
+                            ]
+                          },
+                          "z": {
+                            "type": "string",
+                            "enum": [
+                              "radial_h",
+                              "radial_v",
+                              "axial",
+                              "tangential"
+                            ]
+                          }
+                        },
+                        "description": "Which physical direction each of the sensor's three axes points. The usual triaxial mounting is {\"x\":\"radial_h\",\"y\":\"radial_v\",\"z\":\"axial\"}. Omit if unknown.",
+                        "additionalProperties": false
+                      },
+                      "component_index": {
+                        "type": "integer",
+                        "description": "0-based index into this spec's components[] — which piece of machinery this sensor is bolted to. This is what lets that component's fault frequencies be applied to this point's readings; without it the point is only graded against the broadband ISO velocity zone."
+                      },
+                      "component_id": {
+                        "type": "integer",
+                        "description": "Alternative to component_index when attaching to a component that already exists (from asset_setup)."
+                      },
+                      "bearing": {
+                        "type": "object",
+                        "properties": {
+                          "part_number": {
+                            "type": "string"
+                          },
+                          "manufacturer": {
+                            "type": "string"
+                          },
+                          "ball_count": {
+                            "type": "integer"
+                          },
+                          "pitch_dia": {
+                            "type": "number",
+                            "description": "Pitch diameter, mm."
+                          },
+                          "ball_dia": {
+                            "type": "number",
+                            "description": "Ball diameter, mm."
+                          },
+                          "contact_angle": {
+                            "type": "number",
+                            "description": "Degrees."
+                          },
+                          "bpfi_mult": {
+                            "type": "number",
+                            "description": "Ball pass frequency, inner race, as a multiple of shaft rate."
+                          },
+                          "bpfo_mult": {
+                            "type": "number",
+                            "description": "Ball pass frequency, outer race."
+                          },
+                          "bsf_mult": {
+                            "type": "number",
+                            "description": "Ball spin frequency."
+                          },
+                          "ftf_mult": {
+                            "type": "number",
+                            "description": "Fundamental train (cage) frequency."
+                          },
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "lookup",
+                              "manual",
+                              "default"
+                            ],
+                            "description": "Where the numbers came from."
+                          }
+                        },
+                        "description": "The bearing under this sensor. Resolve a part number with the bearing_lookup read rather than typing fault orders by hand — the four *_mult values are multiples of shaft rotation rate and are what let a fault be named rather than merely detected.",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "device_id"
+                    ],
+                    "additionalProperties": false
+                  },
+                  "description": "One per sensor PROBE, not per sensor. A dual-probe sensor is two entries sharing a device_id."
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "description": "The machine, as the customer would describe it.",
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "spec"
+          ],
+          "additionalProperties": false
+        }
+      },
+      {
+        "id": "waveform.capture",
+        "title": "Capture a vibration waveform",
+        "description": "Ask a monitoring point's sensor for a raw waveform now. The capture runs through the severity engine like any other, so the asset's health is re-evaluated from it.",
+        "params": [
+          {
+            "name": "monitoring_point_id",
+            "type": "int",
+            "title": "Monitoring point",
+            "options_from": "GET /monitoring-point-options"
+          }
+        ]
+      },
+      {
+        "id": "alerts.acknowledge",
+        "title": "Acknowledge threshold alerts",
+        "description": "Mark an asset's open threshold alerts acknowledged, clearing its alert badge and re-arming the alert so a continuing breach fires fresh.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Asset",
+            "options_from": "GET /asset-options"
+          },
+          {
+            "name": "level",
+            "type": "enum:any,warning,critical",
+            "title": "Level to acknowledge",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "notify.send",
+        "title": "Send asset health email",
+        "description": "Send this asset's configured health email now, using its own recipients, templates and latest AI report.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Asset",
+            "options_from": "GET /asset-options"
+          }
+        ]
+      },
+      {
+        "id": "thresholds.set",
+        "title": "Set a telemetry alarm threshold",
+        "description": "Set the Warning and Critical alarm limits on one monitoring point's metric, and what each level does when it fires. Absolute, not a nudge: it writes the values given, so running it twice leaves the same configuration. **Units follow the metric** — temperature is °C, rms_acc and max_acc are g, velocity is mm/s, and the x_peaks / y_peaks / z_peaks metrics are Hz. Leave `warning` or `critical` empty to CLEAR that line rather than keep it: an alarm with only a critical level is expressed by setting critical and leaving warning empty. Critical must be at or above warning, because an alert fires at the highest breached level — a critical line underneath the warning line would make the warning level unreachable. `enabled` false switches the alarm off while keeping its numbers and actions, so turning it back on restores them; a disabled threshold is evaluated against nothing and fires nothing. The four action flags are per level: `warn_notify` / `crit_notify` send the asset's health email when that level fires, and `warn_waveform` / `crit_waveform` request a vibration capture. Omit a flag to keep its current setting — saving values alone never switches off an action already attached to a level. Read the current limits first with the asset_thresholds read, and note that it reports thresholds that are configured but disabled.",
+        "params": [
+          {
+            "name": "monitoring_point_id",
+            "type": "int",
+            "title": "Monitoring point",
+            "options_from": "GET /monitoring-point-options"
+          },
+          {
+            "name": "graph_id",
+            "type": "enum:temperature,rms_acc,max_acc,velocity,x_peaks,y_peaks,z_peaks",
+            "title": "Metric"
+          },
+          {
+            "name": "warning",
+            "type": "number",
+            "title": "Warning level (empty clears it)",
+            "optional": true
+          },
+          {
+            "name": "critical",
+            "type": "number",
+            "title": "Critical level (empty clears it)",
+            "optional": true
+          },
+          {
+            "name": "enabled",
+            "type": "enum:true,false",
+            "title": "Alarm enabled (default true)",
+            "optional": true
+          },
+          {
+            "name": "warn_notify",
+            "type": "enum:true,false",
+            "title": "Warning sends the health email",
+            "optional": true
+          },
+          {
+            "name": "warn_waveform",
+            "type": "enum:true,false",
+            "title": "Warning captures a waveform",
+            "optional": true
+          },
+          {
+            "name": "crit_notify",
+            "type": "enum:true,false",
+            "title": "Critical sends the health email",
+            "optional": true
+          },
+          {
+            "name": "crit_waveform",
+            "type": "enum:true,false",
+            "title": "Critical captures a waveform",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "thresholds.seed",
+        "title": "Seed ISO velocity alarms on every point of an asset",
+        "description": "Set the Warning and Critical velocity alarms implied by the asset's ISO 10816 machine group on all of its monitoring points at once. Warning lands on the zone B/C boundary — where ISO calls a machine \"unsatisfactory\" — and Critical on C/D, \"damaging\"; the numbers come from the same table the severity engine grades captures against, so the alarms and the health score agree rather than offering two opinions. Group II (the default when an asset has none set) gives Warning 2.8 mm/s and Critical 7.1 mm/s. Velocity is the only one of the seven metrics with a published standard behind it — temperature and acceleration limits depend on the site, so set those with `thresholds.set` from a number the customer gives you rather than expecting this action to invent one. **Existing velocity thresholds are skipped, not overwritten**, whether they are switched on or off: an operator who tuned a limit or disabled one deliberately should not have it undone. Pass `overwrite` true to rewrite them anyway, which is what to do after correcting an asset's ISO machine group. Either way the action is absolute and idempotent — running it twice leaves the same configuration — and it reports which points it set and which it skipped, with the reason.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Asset",
+            "options_from": "GET /asset-options"
+          },
+          {
+            "name": "overwrite",
+            "type": "enum:true,false",
+            "title": "Replace thresholds already configured (default false)",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "clause.set",
+        "title": "Write a report guidance clause",
+        "description": "Create or update one AI-report guidance clause, and optionally attach it to an asset. This is how a site's own knowledge gets into every future health report for a machine — context the vibration data cannot supply: \"This pump cavitates for the first two minutes after startup; do not report that as a developing fault.\", \"The drive-end bearing is relubricated quarterly under the PM schedule — never recommend relubrication.\" Write `content` as an instruction addressed to the report writer, not as a note to a human. It is injected into the asset's report prompt as a SITE-SPECIFIC ANALYSIS GUIDANCE bullet ahead of the required output contract, so a clause can steer the analysis but cannot change the report's JSON shape. **Read `report_clauses` first** — the library is gateway-wide and shared between assets. **The clause is identified by its `name`, case-insensitively**, which makes this absolute and idempotent: a new name creates, an existing one is overwritten *for every asset already using it*, and re-sending the same name and content changes nothing. Pick a name specific enough not to collide (\"Coolant Pump 3 startup cavitation\", not \"startup\"). `asset_id` attaches the clause to that asset, appended after the guidance already there; omit it to add to the library without affecting any asset. `attached` false detaches it from that asset while leaving it in the library, so a caller can set an asset to a known state rather than only ever adding. `enabled` false keeps the clause and its attachments but takes it out of force everywhere — an attached clause that is disabled is skipped when the prompt is built. Takes effect on the next report generated for that asset; confirm it landed by reading `report_prompt` for one of the asset's monitoring points.",
+        "params": [
+          {
+            "name": "name",
+            "type": "string",
+            "title": "Clause name (also its key)",
+            "description": "Short label, and the identity of the clause. Re-using an existing name overwrites that clause for every asset using it.",
+            "placeholder": "Coolant Pump 3 startup cavitation"
+          },
+          {
+            "name": "content",
+            "type": "text",
+            "title": "Guidance text",
+            "description": "The instruction to the report writer, in plain prose.",
+            "placeholder": "This pump cavitates for the first two minutes after startup; do not report that as a developing fault."
+          },
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Attach to asset",
+            "optional": true,
+            "description": "Attach the clause to this asset. Omit to manage the library only.",
+            "options_from": "GET /asset-options"
+          },
+          {
+            "name": "attached",
+            "type": "enum:true,false",
+            "title": "Attached to that asset (default true)",
+            "optional": true,
+            "description": "false detaches the clause from the given asset, leaving it in the library."
+          },
+          {
+            "name": "enabled",
+            "type": "enum:true,false",
+            "title": "Clause enabled (default true)",
+            "optional": true,
+            "description": "false keeps the clause and its attachments but skips it everywhere when a prompt is built."
+          }
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "id": "asset_vocabulary",
+        "title": "Read how to describe a machine to AssetPulse",
+        "description": "The vocabulary AssetPulse describes machines in, and the contract for the `asset.create` action. **Read this before creating or reconfiguring an asset** — it is the only place the accepted values are enumerated, and a value outside them is either rejected or silently stored as an untyped asset that never scores properly. Returns: every enumerated field on an asset (machine_type, criticality, ISO machine group with its velocity zones, power band, foundation, speed mode) and which fields each speed mode requires; the drivetrain `component_types` and, per type, the `params` that forcing frequencies are computed from — motor `poles`, gearbox `gear_ratio` and per-stage `teeth`, pump `vanes`, fan and blower `blades`, belt `pulley_ratio`; the monitoring-point fields, including that a point is one sensor PROBE and not one sensor, so a dual-probe sensor (type 111) is two points sharing a device_id, and `component_index`, the link that makes a point's readings interpretable against the machinery it is bolted to; the bearing fields and their fault orders; the ISO 10816 velocity zone table in mm/s; the seven metrics a threshold can be set on with their units; and a complete worked example spec. Static — it is the contract, not the data, so it costs one small response and never changes between calls.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-vocabulary"
+        },
+        "params": []
+      },
+      {
+        "id": "available_sensors",
+        "title": "List vibration sensors available to monitor an asset",
+        "description": "Every whitelisted vibration sensor on this gateway, and which AssetPulse monitoring points already claim it. This is how you pick a `device_id` for `asset.create`: a sensor probe can monitor only one machine gateway-wide, so a probe that already appears in `assignments` is taken and assigning it again is refused. `is_dual_probe` (sensor_type 111) means the sensor carries two INDEPENDENT probes, \"1\" and \"2\", usually cabled to two different bearings — it is two monitoring points, and a sensor with only probe 1 assigned still has probe 2 free. Single-probe sensors (types 110 and 114) use probe \"1\" only. `last_seen_ts` is worth checking before assigning: a sensor that has not reported in weeks will produce an asset that never scores. Only whitelisted sensors are listed — a sensor the gateway is not managing cannot be assigned, and its absence here is the reason.",
+        "route": {
+          "method": "GET",
+          "path": "/available-sensors"
+        },
+        "params": []
+      },
+      {
+        "id": "bearing_lookup",
+        "title": "Look up a bearing's geometry and fault orders by part number",
+        "description": "Resolve a rolling-element bearing part number to its geometry and its four defect-frequency multipliers — BPFI (inner race), BPFO (outer race), BSF (ball spin) and FTF (cage), each expressed as a multiple of shaft rotation rate, so multiplying by rpm/60 gives Hz. Use it whenever a bearing part number is known — from a nameplate, a maintenance record or the person you are talking to — and feed the result straight into the `bearing` object of a monitoring point in `asset.create` with `source` \"lookup\". These four numbers are what let the severity engine name a bearing fault rather than only report that vibration is high; without them a peak in the spectrum stays an unattributed number. The query is normalised, so shield and seal suffixes resolve to the base model — \"6203Z\", \"6203-2RS\" and \"6203\" are the same bearing. Returns `{found: false}` when the catalog does not carry it, which is not an error: enter the geometry or the multipliers by hand from the manufacturer's data instead, with `source` \"manual\".",
+        "route": {
+          "method": "GET",
+          "path": "/bearing-catalog"
+        },
+        "params": [
+          {
+            "name": "part",
+            "in": "query",
+            "type": "string",
+            "required": true,
+            "description": "The bearing part number, e.g. \"6205\" or \"22213E\". Case and punctuation are ignored."
+          }
+        ]
+      },
+      {
+        "id": "asset_roster",
+        "title": "List AssetPulse assets",
+        "description": "Every machine configured in AssetPulse, as `{value, label}` pairs where **value is the asset_id** that every other AssetPulse read and action takes, and label is the asset's name with its machine type in parentheses. Start here when you know a machine by name but not by id. This is the roster only — for an asset's current condition read the retained `machine-health/asset.health` bus state, and for how the machine is built call asset_setup.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-options"
+        },
+        "params": []
+      },
+      {
+        "id": "asset_setup",
+        "title": "Read one asset's mechanical setup",
+        "description": "How one machine is physically built and configured, as the customer entered it when setting the asset up. This is the interpretation context for the asset's vibration data and is available nowhere else — the bus publishes AssetPulse's assessments, never the configuration behind them. Returns the asset's machine type, criticality, ISO 10816 machine group, power band and rigid/flexible foundation; `drivetrain`, the component chain in running order (motor, gearbox, pump, fan, blower, coupling, belt) each with the `params` that forcing frequencies are computed from — motor `poles`, gearbox `gear_ratio` and per-stage `teeth`, pump `vanes`, fan and blower `blades`, belt `pulley_ratio`; `monitoring_points`, one per sensor-and-probe pair, each with the drivetrain component it is mounted on, its `mount_location` (drive_end, non_drive_end, inboard, outboard, casing) and axis `orientation`, the `metric_keys` under which this point's readings are stored in platform telemetry, and its `bearings` with part number, geometry and `fault_orders` — BPFI, BPFO, BSF and FTF as multiples of shaft rotation rate, so multiply by rpm/60 to get Hz; and `speed`, whose mode is fixed, vfd or tach. Effective shaft speed is resolved in this order: a fixed asset's rpm_fixed, else the RPM measured alongside the capture, else the midpoint of rpm_min and rpm_max for a VFD, else 1800 as a last resort. Read this before interpreting an FFT or a peak-frequency reading on this asset — without the bearing fault orders and the shaft speed, a peak is just a number. Configuration only: no readings, captures, assessments or alerts.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-setup/:asset_id"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "type": "int",
+            "description": "The AssetPulse asset id, from asset_roster or from an `asset_id` field in a `machine-health/asset.health` or `machine-health/telemetry.threshold` bus payload."
+          }
+        ]
+      },
+      {
+        "id": "asset_thresholds",
+        "title": "Read one asset's alarm thresholds",
+        "description": "Every telemetry alarm threshold configured on one asset, per monitoring point and per graph — including the ones that are switched off, each carrying its own `enabled` flag. `active_total` and `configured_total` give the headline: a point can hold Warning and Critical limits that fire nothing because the operator disabled them, and that is a finding worth reporting rather than silence. Each threshold also says what its levels do when they fire: `warn_notify` / `crit_notify` send the asset's health email, `warn_waveform` / `crit_waveform` trigger a waveform capture. `graph_ids` lists the seven graphs a threshold can be set on — temperature, rms_acc, max_acc, velocity, x_peaks, y_peaks, z_peaks; a graph absent from a point's `thresholds` map has never had limits set. Prefer this over the retained `machine-health/telemetry.threshold` bus state whenever the question is what the limits ARE, whether they are live, or what they would do: that state covers only points that have recently reported, drops a threshold's values once it is switched off, and never carries the notify or waveform actions.",
+        "route": {
+          "method": "GET",
+          "path": "/asset-alarms/:asset_id"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "type": "int",
+            "description": "The AssetPulse asset id, from asset_roster."
+          }
+        ]
+      },
+      {
+        "id": "report_prompt",
+        "title": "Read the exact prompt behind an AI health report",
+        "description": "The verbatim prompt AssetPulse sends to the AI provider when it writes a health report for one monitoring point — both the `system` and `user` halves, plus the `provider` and `model` that would receive them. This is the analysis itself laid open: the cleaned evidence from the capture, the asset's drivetrain and bearing context, the machine-off guidance when the capture was taken stopped, the operator's own SITE-SPECIFIC ANALYSIS GUIDANCE clauses, and the required JSON output contract, in the order the model receives them. Read it when a customer disagrees with a report and you need to see what the writer was actually told, or before adding a clause with the `clause.set` action — the prompt is where you find out whether the context you are about to add is genuinely missing or already there and being ignored. Defaults to the latest assessment on that point; pass `assessment_id` to inspect the prompt behind an older report instead. **This is a large response** — the evidence block carries per-axis spectra summaries, peaks and diagnoses — so read it for one point when you have a reason to, not across an asset. Answers 400 when the point has no assessment yet: a prompt only exists once a capture has been scored.",
+        "route": {
+          "method": "GET",
+          "path": "/monitoring-points/:id/report-prompt"
+        },
+        "params": [
+          {
+            "name": "id",
+            "in": "path",
+            "type": "int",
+            "description": "The monitoring point id, from asset_setup's `monitoring_point_id`."
+          },
+          {
+            "name": "assessment_id",
+            "in": "query",
+            "type": "int",
+            "description": "Inspect the prompt behind this specific past assessment instead of the latest one."
+          }
+        ]
+      },
+      {
+        "id": "report_clauses",
+        "title": "Read the report guidance clauses and which apply to an asset",
+        "description": "The whole library of AI-report guidance clauses on this gateway, each with its `content` and `enabled` flag, plus `selected` — the ordered clause ids currently applied to one asset. Clauses are how a site teaches the report writer something the vibration data cannot show it: that a pump cavitates for two minutes after startup, that a particular bearing is relubricated quarterly so relubrication should never be recommended, that a machine is scheduled for replacement. Each selected, enabled clause is injected into that asset's report prompt as a SITE-SPECIFIC ANALYSIS GUIDANCE bullet, in `selected` order, ahead of the output contract. **Read this before writing a clause with `clause.set`** — the library is gateway-wide and shared, so the clause you want may already exist and only need attaching, and re-using an existing clause's name overwrites it for every asset that uses it. Two things are easy to miss: a clause in the library but not in `selected` affects this asset not at all, and a clause that is selected but `enabled: false` is skipped when the prompt is built — attached and in force are different states.",
+        "route": {
+          "method": "GET",
+          "path": "/assets/:id/clauses"
+        },
+        "params": [
+          {
+            "name": "id",
+            "in": "path",
+            "type": "int",
+            "description": "The AssetPulse asset id, from asset_roster. The library returned is gateway-wide; only `selected` is per-asset."
+          }
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "icon": "AP",
+    "subtitle": "Machine Health"
+  }
+}
