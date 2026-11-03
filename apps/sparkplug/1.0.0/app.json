@@ -1,0 +1,22 @@
+{
+  "id": "sparkplug",
+  "name": "Sparkplug Transmitter",
+  "version": "1.0.0",
+  "description": "Turns the gateway into a Sparkplug B edge node: every sensor published with birth and death certificates and typed metrics, so Ignition and other Sparkplug hosts build tags automatically.",
+  "minPlatformVersion": "2.8.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "mqtt:connect",
+    "secrets"
+  ],
+  "ui": {
+    "icon": "SP",
+    "subtitle": "Sparkplug B edge node"
+  }
+}
