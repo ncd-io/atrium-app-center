@@ -1,0 +1,523 @@
+{
+  "id": "shop-floor",
+  "name": "Shop Floor",
+  "version": "1.0.0",
+  "description": "What is running right now, and how much each machine has run — today, this shift, week, month, year and all time.",
+  "minPlatformVersion": "2.7.1",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "sensor:config",
+    "notify:email",
+    "events:publish",
+    "actions:provide",
+    "mcp:tools"
+  ],
+  "ui": {
+    "icon": "SF",
+    "subtitle": "Machine Run Time"
+  },
+  "provides": {
+    "events": [
+      {
+        "topic": "asset.state",
+        "title": "Machine state changed",
+        "description": "Each machine's current state: running, stopped, no_signal (its sensor missed reports), or waiting (no report yet since it was added). Republished on every change and every 5 minutes. Tracked separately per machine. 'running' is \"true\" exactly while state is running — bind to it to light a stack light while a machine runs. This is the live state (no delay), as Shop Floor's screens show it. cycles_today / cycles_total count starts (every stopped → running).",
+        "keyed_by": "machine",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "group": "string?",
+          "state": "enum:running,stopped,no_signal,waiting",
+          "running": "enum:true,false",
+          "since": "string?",
+          "run_today_h": "number",
+          "run_total_h": "number",
+          "cycles_today": "int",
+          "cycles_total": "int"
+        }
+      },
+      {
+        "topic": "asset.running",
+        "title": "Machine started or stopped",
+        "description": "Whether each machine is running right now. 'running' turns \"true\" when the machine starts and \"false\" when it stops — so a binding on running = \"true\" fires its enter edge on every start and its exit edge on every stop. A start is announced at once; a stop only once it has lasted the machine's 'ignore stops shorter than' (wait before telling other apps it stopped), so a quick part change doesn't flicker a stack light — running stays \"true\" through it and 'since' keeps the run's start. 'state' says why it isn't running (stopped, no_signal = sensor silent, waiting = no report yet). Tracked separately per machine.",
+        "keyed_by": "machine",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "group": "string?",
+          "running": "enum:true,false",
+          "state": "enum:running,stopped,no_signal,waiting",
+          "since": "string?"
+        }
+      },
+      {
+        "topic": "asset.stopped_too_long",
+        "title": "Machine stopped too long",
+        "description": "Published for machines with a 'Stopped too long' alert set to publish. 'active' is \"true\" while the machine has been stopped longer than its limit (counting only the alert's time window, e.g. during shifts) and turns \"false\" when it starts again. stopped_minutes is the stop so far inside that window; limit_minutes the limit. Tracked separately per machine.",
+        "keyed_by": "machine",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "group": "string?",
+          "active": "enum:true,false",
+          "stopped_minutes": "int",
+          "limit_minutes": "int",
+          "shift": "string?"
+        }
+      },
+      {
+        "topic": "asset.service_due",
+        "title": "Machine service due",
+        "description": "Service hours for machines with a service interval set. hours_since_service counts run time since the last service; 'due' turns \"true\" once it reaches service_interval_h and stays true until the service hours are reset (in Shop Floor, the service.reset action, or the API) — bind to its false-to-true edge to open one maintenance ticket per service. estimated_due is the date (YYYY-MM-DD) service is expected at the last 30 days' average run time; empty when the machine has barely run. Tracked separately per machine.",
+        "keyed_by": "machine",
+        "payload": {
+          "asset_id": "int",
+          "asset_name": "string",
+          "group": "string?",
+          "due": "enum:true,false",
+          "hours_since_service": "number",
+          "service_interval_h": "number",
+          "hours_remaining": "number",
+          "estimated_due": "string?",
+          "run_total_h": "number"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "service.reset",
+        "title": "Reset machine service hours",
+        "description": "Records that a machine was serviced and sets its hours since service back to 0 (or to hours_since_service if given) — e.g. when another app reports the maintenance ticket closed. Clears the Service due badge and turns asset.service_due false. Refused if the machine has no service interval.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Machine",
+            "options_from": "GET /bus/options/assets"
+          },
+          {
+            "name": "done_by",
+            "type": "string",
+            "title": "Done by",
+            "optional": true,
+            "description": "Who did the service; logged with it."
+          },
+          {
+            "name": "hours_since_service",
+            "type": "number",
+            "title": "Hours since service after reset",
+            "optional": true,
+            "description": "Usually 0 (the default)."
+          }
+        ]
+      },
+      {
+        "id": "machine.create",
+        "title": "Add a machine to Shop Floor",
+        "description": "Adds a machine (asset) and optionally binds it to a sensor input. Does not change the sensor's own settings — a person runs the sensor setup wizard in Shop Floor for that, at the machine. Refuses a sensor input already used by another machine. Returns the new asset_id.",
+        "params": [
+          {
+            "name": "name",
+            "type": "string",
+            "title": "Name",
+            "optional": false
+          },
+          {
+            "name": "group",
+            "type": "string",
+            "title": "Group (floor-view tab)",
+            "optional": true,
+            "description": "Group name; created if it doesn't exist. Empty string = no group."
+          },
+          {
+            "name": "icon",
+            "type": "enum:laser,robot,welder,plasma,mill,lathe,press,shear,saw,compressor,pump,conveyor",
+            "title": "Icon",
+            "optional": true
+          },
+          {
+            "name": "sensor_device_id",
+            "type": "string",
+            "title": "Sensor",
+            "optional": true,
+            "description": "The sensor's device_id (radio MAC) as the platform lists it. Only run-detection sensor types work: 2, 33, 108, 119, 123, 132, 133. Empty string unbinds."
+          },
+          {
+            "name": "sensor_input",
+            "type": "string",
+            "title": "Sensor input",
+            "optional": true,
+            "description": "Which input on the sensor: 119 acc|mag, 108 di|ct|opto|acc|mag, 33 input, 2 in1|in2, 123 in1|in2|in3, 133 in1|in2, 132 in1."
+          },
+          {
+            "name": "running_when",
+            "type": "enum:on,off",
+            "title": "Running when the input is",
+            "optional": true
+          },
+          {
+            "name": "ignore_stops_shorter_than_min",
+            "type": "number",
+            "title": "Wait before telling other apps it stopped (minutes)",
+            "optional": true,
+            "description": "Delays only the asset.running \"stopped\" message to other apps (and the stopped-too-long alert never fires sooner). Shop Floor's own state and screens are always live. 0 = report every stop at once."
+          },
+          {
+            "name": "hours_already_on_machine",
+            "type": "number",
+            "title": "Hours already on the machine",
+            "optional": true,
+            "description": "Added to all-time run time so it matches the machine's own hour meter."
+          },
+          {
+            "name": "service_interval_h",
+            "type": "number",
+            "title": "Service every (hours of run time)",
+            "optional": true,
+            "description": "0 or empty turns service tracking off."
+          },
+          {
+            "name": "hours_since_service",
+            "type": "number",
+            "title": "Hours since last service",
+            "optional": true,
+            "description": "Sets the service hours counter (does not log a service — use service.reset for that)."
+          }
+        ]
+      },
+      {
+        "id": "machine.update",
+        "title": "Change a machine's settings",
+        "description": "Changes only the fields given: name, group, icon, sensor binding, polarity, 'ignore stops shorter than' (the stop-announcement delay), starting hours, service interval and hours since service. To log a completed service use service.reset instead.",
+        "params": [
+          {
+            "name": "asset_id",
+            "type": "int",
+            "title": "Machine",
+            "options_from": "GET /bus/options/assets"
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "title": "Name",
+            "optional": true
+          },
+          {
+            "name": "group",
+            "type": "string",
+            "title": "Group (floor-view tab)",
+            "optional": true,
+            "description": "Group name; created if it doesn't exist. Empty string = no group."
+          },
+          {
+            "name": "icon",
+            "type": "enum:laser,robot,welder,plasma,mill,lathe,press,shear,saw,compressor,pump,conveyor",
+            "title": "Icon",
+            "optional": true
+          },
+          {
+            "name": "sensor_device_id",
+            "type": "string",
+            "title": "Sensor",
+            "optional": true,
+            "description": "The sensor's device_id (radio MAC) as the platform lists it. Only run-detection sensor types work: 2, 33, 108, 119, 123, 132, 133. Empty string unbinds."
+          },
+          {
+            "name": "sensor_input",
+            "type": "string",
+            "title": "Sensor input",
+            "optional": true,
+            "description": "Which input on the sensor: 119 acc|mag, 108 di|ct|opto|acc|mag, 33 input, 2 in1|in2, 123 in1|in2|in3, 133 in1|in2, 132 in1."
+          },
+          {
+            "name": "running_when",
+            "type": "enum:on,off",
+            "title": "Running when the input is",
+            "optional": true
+          },
+          {
+            "name": "ignore_stops_shorter_than_min",
+            "type": "number",
+            "title": "Wait before telling other apps it stopped (minutes)",
+            "optional": true,
+            "description": "Delays only the asset.running \"stopped\" message to other apps (and the stopped-too-long alert never fires sooner). Shop Floor's own state and screens are always live. 0 = report every stop at once."
+          },
+          {
+            "name": "hours_already_on_machine",
+            "type": "number",
+            "title": "Hours already on the machine",
+            "optional": true,
+            "description": "Added to all-time run time so it matches the machine's own hour meter."
+          },
+          {
+            "name": "service_interval_h",
+            "type": "number",
+            "title": "Service every (hours of run time)",
+            "optional": true,
+            "description": "0 or empty turns service tracking off."
+          },
+          {
+            "name": "hours_since_service",
+            "type": "number",
+            "title": "Hours since last service",
+            "optional": true,
+            "description": "Sets the service hours counter (does not log a service — use service.reset for that)."
+          }
+        ]
+      },
+      {
+        "id": "settings.update",
+        "title": "Change Shop Floor settings",
+        "description": "Changes plant-wide settings. shifts and groups REPLACE the whole list (keep an item by giving its id; items left out are deleted — read them first with the machines read). Shift times are HH:MM in 24 h as minutes after midnight (start_min/end_min); a shift ending after midnight belongs to the day it starts; days_mask bit 0 = Sunday … bit 6 = Saturday (62 = Mon–Fri). Shift changes apply from now on; apply_shifts_to_today also re-sorts today's run time into the new shifts.",
+        "params": [
+          {
+            "name": "config",
+            "type": "json",
+            "title": "Settings",
+            "optional": true
+          },
+          {
+            "name": "shifts",
+            "type": "json",
+            "title": "Shifts (whole list)",
+            "optional": true
+          },
+          {
+            "name": "groups",
+            "type": "json",
+            "title": "Groups (whole list)",
+            "optional": true
+          },
+          {
+            "name": "apply_shifts_to_today",
+            "type": "enum:true,false",
+            "title": "Also apply shifts to today's run time",
+            "optional": true
+          }
+        ],
+        "schema": {
+          "type": "object",
+          "properties": {
+            "config": {
+              "type": "object",
+              "properties": {
+                "day_start_min": {
+                  "type": "integer",
+                  "description": "Minutes after midnight the production day starts (360 = 6:00 AM)."
+                },
+                "week_start": {
+                  "type": "string",
+                  "enum": [
+                    "mon",
+                    "sun"
+                  ]
+                },
+                "missed_reports": {
+                  "type": "integer",
+                  "description": "Show No signal after this many missed reports (2–10)."
+                },
+                "tile_period": {
+                  "type": "string",
+                  "enum": [
+                    "shift",
+                    "today",
+                    "week",
+                    "month",
+                    "quarter",
+                    "year",
+                    "all",
+                    "none"
+                  ]
+                },
+                "tile_size": {
+                  "type": "string",
+                  "enum": [
+                    "normal",
+                    "large"
+                  ]
+                },
+                "tile_show_since": {
+                  "type": "boolean"
+                },
+                "tile_show_bar": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "shifts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Existing shift id to keep/edit; omit to add."
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "start_min": {
+                    "type": "integer"
+                  },
+                  "end_min": {
+                    "type": "integer"
+                  },
+                  "days_mask": {
+                    "type": "integer",
+                    "description": "bit 0 = Sunday … bit 6 = Saturday; 62 = Mon–Fri"
+                  }
+                },
+                "required": [
+                  "name",
+                  "start_min",
+                  "end_min",
+                  "days_mask"
+                ]
+              }
+            },
+            "groups": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
+              }
+            },
+            "apply_shifts_to_today": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "reads": [
+      {
+        "id": "floor_status",
+        "title": "What's running on the shop floor",
+        "description": "Every machine right now: running / stopped / no_signal (sensor silent) / waiting (no report yet), since when, run time and cycles so far today, whether it has been stopped longer than its alert allows, and service hours (due, hours since service, interval, estimated due date). Also the current production day and shift. Prefer this for 'what is running' questions — it reflects each machine's debounce and the plant's shifts.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/floor"
+        },
+        "params": []
+      },
+      {
+        "id": "machines",
+        "title": "Shop Floor machines and settings",
+        "description": "Configuration that exists only in Shop Floor: each machine's group, sensor binding (device_id, sensor type, which input, and the platform metric names for its on/off input and uptime counter — usable with the platform's telemetry tools), polarity, 'ignore stops shorter than', hours already on the machine, service interval and odometer with estimated due date and last service, and stopped-too-long alert rules. Plus the plant calendar: shifts, production day start, week start, timezone, groups. asset_id narrows to one machine.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/machines"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "query",
+            "type": "int",
+            "description": "One machine; omit for all."
+          }
+        ]
+      },
+      {
+        "id": "run_time",
+        "title": "Machine run time by period",
+        "description": "Hours each machine ran today, this week, month, quarter, year and all time (all time includes hours entered at setup), plus cycles (machine starts — a proxy for parts made) for the same periods and today's percentage of elapsed time. Periods follow the plant's production day and week start. shift narrows to one shift (id from the machines read) or 0 for time outside shifts.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/run-time"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "query",
+            "type": "int",
+            "description": "One machine; omit for all."
+          },
+          {
+            "name": "shift",
+            "in": "query",
+            "type": "string",
+            "description": "'all' (default), a shift id, or 0 = outside shifts."
+          }
+        ]
+      },
+      {
+        "id": "run_time_history",
+        "title": "One machine's run-time history",
+        "description": "Run time per bucket for one machine: today = minutes per hour; week/month = hours per day; quarter = hours per week; year = hours per month; all = hours per year. Each bucket also has cycles (starts). Only past buckets.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/history/:asset_id"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "type": "int",
+            "description": "From floor_status or machines."
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "type": "enum:today,week,month,quarter,year,all",
+            "description": "Default today."
+          },
+          {
+            "name": "shift",
+            "in": "query",
+            "type": "string",
+            "description": "'all' (default), a shift id, or 0."
+          }
+        ]
+      },
+      {
+        "id": "machine_day",
+        "title": "One machine's day",
+        "description": "One production day for one machine: run and stopped hours, cycles (starts), average and longest run, first start, and the timeline of state changes (running / stopped / no_signal with times). Up to the last 200 changes. day is YYYY-MM-DD (the production day, which starts at the plant's day start); default today.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/day/:asset_id"
+        },
+        "params": [
+          {
+            "name": "asset_id",
+            "in": "path",
+            "type": "int",
+            "description": "From floor_status or machines."
+          },
+          {
+            "name": "day",
+            "in": "query",
+            "type": "string",
+            "description": "YYYY-MM-DD; default today."
+          },
+          {
+            "name": "shift",
+            "in": "query",
+            "type": "string",
+            "description": "'all' (default), a shift id, or 0."
+          }
+        ]
+      }
+    ]
+  }
+}
