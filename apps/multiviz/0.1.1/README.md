@@ -1,12 +1,17 @@
 # MultiViz
 
-> This README doubles as the submission-README skeleton required by
-> `docs/10-packaging-and-submission.md`.
+Sends vibration data from NCD wireless sensors to **Viking Analytics
+MultiViz**, the self-learning machine-health monitoring platform. Enter the
+broker details from MultiViz's **Setup Integration** wizard, link the sensors
+you want monitored, and the app publishes their processed data and vibration
+waveforms to MultiViz, which builds its asset tree from them.
+
+**Requires Atrium 2.8.0** or later (the app's own MQTT connection to the
+MultiViz broker). Status: **0.1.1**, the first App Center release.
 
 ## What it does
 
-Links NCD vibration sensors to Viking Analytics' MultiViz (self-learning
-machine-health monitoring). MultiViz Bridge opens its own dedicated MQTT
+The app opens its own dedicated MQTT
 connection to the broker MultiViz's integration wizard provisions per
 customer, and publishes every frame from a linked sensor — processed
 (`sensor_data.mode` 0/2/3) and waveform (mode 1, `sensor_data.data.{x,y,z}`) —
@@ -40,8 +45,7 @@ bytes: 80 `F4 4F 00 00 54 13`; 81 `F4 4F 00 00 50 13 p` with `p` 01 / 02 /
 They can't be configured through Atrium: no Configure button, and linking one
 shows a V3-specific popup instead (no auto waveform — use On-request
 Waveform Data; configure mode, destination address, payload length, … with
-Node-RED; NCD technical support for guidance). Reshaped examples:
-`multiviz-dev/samples/`.
+Node-RED; NCD technical support for guidance).
 
 Sensor **error frames** are not published — MultiViz expects data frames
 only, for now. `frameError()` in `backend/vibration.js` recognizes NCD's
@@ -85,7 +89,6 @@ Per-probe request/receive times (`waveform_probe_status`) are shown per
 probe in the popup; the Overview row's icon combines the probes the request
 covers (received = every covered probe's waveform arrived after the latest
 request).
-Tests: `node multiviz-dev/tests/ingest.test.mjs`.
 
 ## Data model
 
@@ -170,53 +173,16 @@ Tooltips render through a portal into `document.body`
 (`components/Tooltip.jsx`): a CSS-only `::after` tooltip gets clipped by the
 scrolling tables and the modal body.
 
-## Known gaps / things to verify on real hardware
+## Limitations
 
-- **Custom and Smart requests use an undocumented platform internal.** The
-  documented `fft.sendRequestNow` only sends the Regular command (probe
-  `1`/`2`/`both`). Custom/Smart are sent with `ctx.services.fft._transmit(addr,
-  'custom', bytes)` — the method the platform's own `custom` `fft_requests`
-  use (same listen-window delay and sensor-window hold). It's reachable only
-  because app-host hands apps the daemon's whole Fft instance for
-  `radio:fft`. Consequences: it can change or disappear in a platform update
-  (the app feature-detects it, and the popup then disables Custom/Smart);
-  it skips `sendRequestNow`'s radio-busy check (a firmware update holding the
-  radio) and in-flight dedupe (the app has its own 3 s dedupe; during a
-  firmware update the gateway hears no processed frames to trigger on
-  anyway); and it doesn't update `fft_requests`, so the platform's own
-  `raw_vibration_data.probe` attribution for a type 111 may be stale for
-  those captures (MultiViz gets the probe from the frame itself). It would
-  very likely be flagged in app-center review. The ask to NCD: a public
-  `sendRequestNow` variant that takes command bytes (or `custom`/`smart`
-  with ODR/duration).
-- One topic per sensor (`<topic_root>/<device_id>`, processed and waveform
-  frames both, told apart by `sensor_data.mode`) is our interpretation of
-  what MultiViz needs — validate end-to-end against a real MultiViz
-  integration before relying on automatic asset creation.
 - Requesting a waveform after every transmission costs sensor battery and
-  airtime; the popup says so.
-- Links to the platform dashboard's own sensor pages (`/sensor/:id/dashboard`,
-  `/sensor/:id/configure`) use routes discovered by inspecting the dashboard's
-  own JS bundle (not documented in the devkit) and need `encodeURIComponent`
-  on the device id — the router expects `%3A`, not a literal `:`, confirmed
-  against the real dashboard's own links. Re-verify these if a platform
-  upgrade changes the dashboard's routing.
-
-## Testing done
-
-- Gateway model(s): EG5100, confirmed on real hardware at platform 2.7.1 and
-  again after an in-place upgrade to 2.8.1 (the `mqtt:connect`/`secrets`
-  feature-detection activated automatically on the restart, no reinstall).
-- Platform version: 2.7.1 → 2.8.1.
-- Checklist (`docs/11-checklist.md`): _fill in results_
-
-## Commercial intent
-
-Free.
-
-## Changelog
-
-- 0.1.0 — initial version: broker connection, sensor linking, processed-data
-  bridge, continuous on-request waveform data (Regular/Custom/Smart).
-  (Superseded this app's original ISA-95 asset-mapping design — MultiViz maps
-  on its own side — and renamed from "Viking" to "MultiViz".)
+  airtime; the On-request Waveform Data popup says so. A Gen4 sensor already
+  sending waveforms on its own (Auto Waveform Transmission Interval) doesn't
+  need it.
+- Sensor error frames and type 127 ultrasound waveforms are not sent to
+  MultiViz; each is noted in the sensor's Historical popup.
+- Types 80 / 81 can't be configured from Atrium; use Node-RED, or contact NCD
+  technical support.
+- Custom and Smart waveform requests rely on a platform internal and are
+  disabled automatically if a platform update removes it; Regular requests
+  are unaffected.
