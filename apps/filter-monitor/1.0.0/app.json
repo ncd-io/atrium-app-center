@@ -1,0 +1,98 @@
+{
+  "id": "filter-monitor",
+  "name": "Filter Monitor",
+  "version": "1.0.0",
+  "description": "Air filter health from differential pressure: clogging, remaining life and replacement alerts for HVAC and industrial filters.",
+  "minPlatformVersion": "2.6.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "notify:email",
+    "events:publish",
+    "actions:provide",
+    "mcp:tools"
+  ],
+  "provides": {
+    "events": [
+      {
+        "topic": "filter.status",
+        "title": "Filter status changed",
+        "description": "Published every time a monitored air filter is re-evaluated (roughly every 5 minutes). 'life_used_pct' is how far the filter has travelled from its clean differential pressure toward the replacement pressure configured for that filter: 0 is a new element, 100 means it has reached the replacement threshold and is due for a change. Differential pressure depends on airflow as well as dust loading, so only samples taken while the system is moving air are scored. When the fan is off, 'airflow' is 'idle' and the severity holds its last known running value \u2014 a low pressure reading on an idle system does not mean the filter is clean.",
+        "keyed_by": "filter",
+        "payload": {
+          "filter_id": "int",
+          "filter_name": "string",
+          "location": "string?",
+          "severity": "enum:optimal,good,monitor,warning,critical,unknown",
+          "life_used_pct": "number?",
+          "differential_pressure_pa": "number?",
+          "differential_pressure_inwc": "number?",
+          "airflow": "enum:running,idle,unknown",
+          "device_id": "string?",
+          "sensor_ok": "bool",
+          "stale": "bool",
+          "last_reading_ts": "int?"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "filter.mark-replaced",
+        "title": "Mark a filter as replaced",
+        "description": "Record that a filter element has been physically changed. Resets the filter's used life to zero and timestamps the replacement in its service history; if the filter is set to learn its clean baseline automatically, it starts re-learning the clean differential pressure from the next hours of running airflow. This is an absolute state change, not a toggle, so it is safe to call again \u2014 a repeat simply records a later replacement.",
+        "params": [
+          {
+            "name": "filter_id",
+            "type": "int",
+            "title": "Filter",
+            "options_from": "GET /filters/options"
+          }
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "id": "filter_status",
+        "title": "Read air filter health",
+        "description": "Every monitored air filter with its current clogging state, percentage of used life, live differential pressure and whether its system is currently moving air. Each filter is classified against the clean and replacement pressures configured for that specific filter on this gateway, so this reflects the operator's own filter specifications rather than a generic rule \u2014 prefer it over raw pressure readings for any question about whether a filter needs changing. Filters whose fan is off report airflow 'idle' and hold their last running severity: a low differential pressure on an idle system does NOT mean the filter is clean. A filter with severity 'unknown' has no linked sensor, no recent data, or has not yet collected enough running samples.",
+        "route": {
+          "method": "GET",
+          "path": "/filters"
+        },
+        "params": []
+      },
+      {
+        "id": "filter_history",
+        "title": "Differential pressure trend for one filter",
+        "description": "Time-bucketed differential pressure for a single filter, reported as mean plus min and max per bucket so that short spikes stay visible after aggregation. Buckets containing no running-airflow samples are omitted. Use this to see how fast a filter is loading and to judge when it will reach its replacement threshold.",
+        "route": {
+          "method": "GET",
+          "path": "/filters/:id/history"
+        },
+        "params": [
+          {
+            "name": "id",
+            "in": "path",
+            "type": "int",
+            "description": "Filter id, as returned by filter_status."
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "type": "int",
+            "description": "Look-back window in hours. Defaults to 168 (7 days); capped at 2160 (90 days)."
+          }
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "icon": "FM",
+    "subtitle": "Filter Health"
+  }
+}
