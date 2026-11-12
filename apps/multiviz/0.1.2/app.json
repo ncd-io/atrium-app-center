@@ -1,0 +1,27 @@
+{
+  "id": "multiviz",
+  "name": "MultiViz",
+  "version": "0.1.2",
+  "description": "Link NCD vibration sensors to Viking Analytics MultiViz: opens the dedicated MQTT connection MultiViz's integration wizard provisions and publishes processed and waveform vibration data to it.",
+  "minPlatformVersion": "2.8.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "hooks": {
+    "postInstall": "backend/hooks/post-install.js"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "secrets",
+    "mqtt:connect",
+    "radio:fft",
+    "sensor:config"
+  ],
+  "ui": {
+    "icon": "MV",
+    "subtitle": "Vibration Bridge"
+  }
+}
