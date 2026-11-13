@@ -1,0 +1,156 @@
+{
+  "id": "auto-lube",
+  "name": "Auto Lubrication System",
+  "version": "0.20.0",
+  "description": "Fleet management for NCD automatic luber nodes (firmware 3): ultrasound level against the node's baseline, lubrication outcomes, cartridge life prediction, lubrication settings and manual lube control.",
+  "minPlatformVersion": "2.4.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "sensor:config",
+    "notify:email",
+    "digimesh:transmit",
+    "events:publish",
+    "mcp:tools"
+  ],
+  "provides": {
+    "events": [
+      {
+        "topic": "node.health",
+        "title": "Luber node health changed",
+        "description": "Published whenever a luber node is re-evaluated — on each report, after each lube, and on the background sweep. Carries the node's current state, not a one-off notification. lubrication_state is derived by this app, because firmware 3 does not report one: 'normal' = the RMS ultrasound level (dbuv, dBuV) is at or below the node's trigger level (its baseline + delta); 'elevated' = above it, so the node should be lubricating — the healthy working case; 'not_responding' = still above it after the node's allowed number of consecutive automatic lubes, which the firmware treats as a faulty machine; 'damage_suspected' = above the trigger AND the signal is impulsive (kurtosis above the node's kurtosis baseline + margin) — impacts or spalling rather than a lack of grease, so the node does not lubricate; inspect the machine; 'manual_mode' = the node's lubrication mode is Manual (it never doses on its own); 'scheduled' = its mode is Time (it doses on a schedule, not on the level); 'unknown' = no baseline known. Only in Auto mode is the level judged against the trigger. It cannot see the node's kurtosis check, so it approximates the node's own decision. lubrication_mode is the node's mode: manual, auto or time. dispenser_status comes from the lube report's I/O byte: 'error' means the dispenser was not healthy at the last lube (cartridge empty, unpowered or disconnected — firmware 3 does not distinguish). reading_fault 'no_signal' means the sensor reported 0 uV. status is an exclusive band (only one value at a time), ranked worst-first: offline > fault > attention > ok; disabled and unknown rank with ok. To act on trouble, condition on attention_or_worse or fault_or_worse, which stay \"true\" as a node escalates: 'status is attention' stops matching the moment the node gets worse and becomes fault, which fires the binding's exit edge. offline counts as fault_or_worse because a node that stops reporting cannot be confirmed lubricating, and a faulty node that goes silent shows as offline. Use status itself only when you really want one level alone.",
+        "keyed_by": "device_id",
+        "payload": {
+          "device_id": "string",
+          "node_name": "string",
+          "status": "enum:ok,attention,fault,offline,disabled,unknown",
+          "attention_or_worse": "enum:true,false",
+          "fault_or_worse": "enum:true,false",
+          "lubrication_state": "enum:normal,elevated,not_responding,damage_suspected,manual_mode,scheduled,unknown",
+          "lubrication_mode": "enum:manual,auto,time,unknown",
+          "dispenser_status": "enum:ok,error,unknown",
+          "reading_fault": "enum:none,no_signal",
+          "status_detail": "string?",
+          "machine": "string?",
+          "location": "string?",
+          "dbuv": "number?",
+          "kurtosis": "number?",
+          "temperature_c": "number?",
+          "total_doses": "int?"
+        }
+      },
+      {
+        "topic": "cartridge.level",
+        "title": "Lubricant cartridge level changed",
+        "description": "Lubricant remaining in the fitted cartridge, in cm3 and in doses, derived from the node's lifetime dose counter against the cartridge volume and the dose size set on the dispenser. Published once a cartridge is registered and the node has reported its counter, which firmware 3 sends only in its lube report. level is an exclusive band (ok, warn, critical) set by the operator's warn/critical percent-used rules; unknown is published once, as the final state, when the node is removed from this app. To act on a low cartridge, condition on warn_breached (warn or critical) or critical_breached rather than 'level is warn', which stops matching when the cartridge drops further to critical and fires the binding's exit edge.",
+        "keyed_by": "device_id:dispenser",
+        "payload": {
+          "device_id": "string",
+          "node_name": "string",
+          "dispenser_no": "int",
+          "level": "enum:ok,warn,critical,unknown",
+          "warn_breached": "enum:true,false",
+          "critical_breached": "enum:true,false",
+          "pct_used": "number?",
+          "pct_remaining": "number?",
+          "doses_used": "int?",
+          "doses_remaining": "int?",
+          "rated_doses": "int?",
+          "cm3_remaining": "number?",
+          "cm3_used": "number?",
+          "cm3_per_dose": "number?",
+          "size_cm3": "number?"
+        }
+      }
+    ],
+    "reads": [
+      {
+        "id": "fleet_status",
+        "title": "Luber fleet status",
+        "description": "Every NCD automatic luber node this app manages, one line each: its current rolled-up status, why, the app's lubrication state, dispenser status, last RMS ultrasound level (dBuV) against the node's trigger level, temperature, and how much lubricant is left in the fitted cartridge. Start here for any question about lubrication on this gateway, and to get the device_ids the other auto-lube reads take. status is the worst of: disabled > offline > fault > attention > ok (unknown = never reported). lubrication_state is derived by this app from the reading and the node's settings (firmware 3 does not report one): 'normal' = at or below the trigger level (baseline + delta); 'elevated' = above it, so the node should be lubricating — the healthy working case; 'not_responding' = still above it after the node's allowed consecutive automatic lubes, which the firmware treats as a faulty machine — inspect it; 'damage_suspected' = above the trigger with high kurtosis (an impulsive rise: impacts, spalling) — damage rather than a lack of grease, the node does not lubricate it, inspect the machine; 'manual_mode' = the node's lubrication mode is Manual (never doses on its own); 'scheduled' = its mode is Time (doses on a schedule, not on the level). lubrication_mode gives each node's mode. It cannot see the node's kurtosis check, so treat it as an approximation of the node's own decision. dispenser_status 'error' = the dispenser was not healthy at the last lube (empty cartridge, power or wiring). reading_fault 'no_signal' = the sensor reported 0 uV. cartridge_level is judged against the warn/critical percent-used rules in the envelope, which the operator set in this app. Offline nodes keep their last-known values, so check minutes_since_report before treating a state as current.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/fleet"
+        },
+        "params": []
+      },
+      {
+        "id": "node_setup",
+        "title": "Luber node configuration and commissioning",
+        "description": "How one luber node is set up — configuration that exists nowhere else on the gateway: machine and location, the commissioning baseline (mean RMS dBuV of this machine in known-good condition) and whether it was signed off, whether IMPULSE mode on the dispenser was confirmed (it cannot be read over the radio; in TIME mode the node's dosing silently does nothing), and the node's firmware-3 lubrication settings: base_line and delta (in Auto mode the node lubricates when the RMS level rises more than delta above the baseline — trigger_dbuv is their sum), max_consecutive_auto_lube (doses in a row without the level falling before the machine is treated as faulty), lube_on_time_sec, baseline_kurtosis and kurtosis_margin (the node's impulsiveness check: a rise with kurtosis above baseline + margin — kurtosis_trigger — is treated as damage, not starvation), lubrication_mode (manual = never doses on its own; auto = doses on the ultrasound level; time = doses on a schedule), auto_lube_deadband (in mg), fly_timeout_sec (how long the node listens for commands after a report), and filter_band (the frequency band the ultrasound sensor listens in: 8-32, 10-32 or 12-32 kHz). Settings the gateway has not reported, or reported with an impossible value, are listed in not_reported — treat them as unknown, not as defaults. Also lists any setting change still waiting to be delivered (settings reach the node only in its listen window after a report), the fitted cartridge, and the platform telemetry metric names for this node. Use this to explain WHY a node behaves as it does; use fleet_status for WHAT it is doing now.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/nodes/:device_id/setup"
+        },
+        "params": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "type": "string",
+            "description": "The luber node's radio address: a colon-separated 64-bit MAC such as 00:13:a2:00:42:3c:86:f7. Take it from the device_id field of fleet_status."
+          }
+        ]
+      },
+      {
+        "id": "node_activity",
+        "title": "Luber node lubrication activity by day",
+        "description": "What one luber node has done over the last N days, aggregated per UTC day: RMS ultrasound level in dBuV (mean/min/max — compare with trigger_dbuv, the level above which the node lubricates), highest temperature, highest kurtosis (impulsiveness: high values point to impacts or damage), number of lube bursts and doses delivered, and bursts where the dispenser was not healthy. For the last 5 doses it gives the dose response: the RMS level just before each dose against the level 20+ minutes after it (once the grease has worked in) — 'fell' means the dose helped (the machine was starved), 'rose' means the level went UP after greasing, the signature of over-greasing (stronger still if temperature rose too), 'no_change' nothing measurable, 'pending' still settling. dose_rate gives doses in the last 24 h against the operator's budget. Also lists the app's lubrication-state changes (normal / elevated / not_responding / manual_mode / scheduled) with the level that caused each, latest first. Use for 'is it lubricating', 'has the level been rising', or 'when did it stop responding'. Days with no readings and no doses are omitted, so a gap means the node was silent, not that it read zero. Platform telemetry is kept for a limited time (typically 30 days).",
+        "route": {
+          "method": "GET",
+          "path": "/reads/nodes/:device_id/activity"
+        },
+        "params": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "type": "string",
+            "description": "The luber node's radio address: a colon-separated 64-bit MAC such as 00:13:a2:00:42:3c:86:f7. Take it from the device_id field of fleet_status."
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "type": "int",
+            "required": false,
+            "description": "Number of UTC days to cover, ending today. 1 to 30; default 7."
+          }
+        ]
+      },
+      {
+        "id": "cartridge_forecast",
+        "title": "Lubricant cartridge remaining and run-out forecast",
+        "description": "Lubricant left in one node's fitted cartridge and when it is projected to run dry, plus its cartridge service history. Remaining is computed by this app from the node's lifetime dose counter since the cartridge was fitted, times the cm3-per-dose the operator recorded — the node itself cannot know it. The projection assumes the machine keeps using grease at the rate it has since this cartridge went in; a change of duty or season breaks that, so present it as an estimate. When there is no projection, no_projection_because says why. anchor_stale means the node's counter was reset on the device, so the remaining figure is unknown until the operator re-records the cartridge — do not read that as full. dispenser_status 'error' means the dispenser was not healthy at the last lube — on firmware 3 that includes an empty cartridge, and it overrides any estimate. Prefer this over reading the dose counter from raw telemetry: it applies the operator's cartridge records and warn/critical rules.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/nodes/:device_id/cartridge"
+        },
+        "params": [
+          {
+            "name": "device_id",
+            "in": "path",
+            "type": "string",
+            "description": "The luber node's radio address: a colon-separated 64-bit MAC such as 00:13:a2:00:42:3c:86:f7. Take it from the device_id field of fleet_status."
+          }
+        ]
+      },
+      {
+        "id": "open_alerts",
+        "title": "Open lubrication alerts",
+        "description": "Every alert condition currently open in this app, critical first, naming the node, machine and location. kind is one of: damage_suspected (level above the trigger with an impulsive signal — high kurtosis — so likely impacts or spalling, not a lack of grease; the node does not lubricate it; inspect the machine), not_responding (level still above the trigger after the allowed consecutive automatic lubes — the firmware treats the machine as faulty; inspect the machine, then the dispenser and cartridge), dispenser_error (dispenser not healthy at the last lube — empty cartridge, power or wiring), no_signal (sensor reported 0 uV — disconnected or not mounted), offline (no report within the expected window), cartridge_low (doses used past the operator's warn/critical percent), dose_rate (more doses in the last 24 h than the operator's budget — possible over-greasing; check the dose responses in node_activity). An alert closes by itself when the condition clears. last_emailed_at and email_error show whether the operator was actually notified. An email needs both alert_recipients_set (recipients entered in this app's settings) and smtp_configured (an SMTP server in the gateway's own configuration); either false means alerts are recorded here but nobody is emailed.",
+        "route": {
+          "method": "GET",
+          "path": "/reads/alerts"
+        },
+        "params": []
+      }
+    ]
+  },
+  "ui": {
+    "icon": "AL",
+    "subtitle": "Auto Lubrication"
+  }
+}
