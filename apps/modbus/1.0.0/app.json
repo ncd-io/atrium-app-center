@@ -1,0 +1,38 @@
+{
+  "id": "modbus",
+  "name": "Modbus Server",
+  "version": "1.0.0",
+  "description": "Serves every NCD sensor to PLCs and SCADA over Modbus TCP (Ethernet) and/or Modbus RTU (RS-485): a fixed register block per sensor with decoded float values, status, age and a heartbeat.",
+  "minPlatformVersion": "2.10.0",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "capabilities": ["data:read", "telemetry:subscribe", "mcp:tools", "net:listen", "serial:rs485"],
+  "listens": [{ "id": "tcp", "title": "Modbus TCP" }],
+  "provides": {
+    "reads": [
+      {
+        "id": "server_config",
+        "title": "Modbus server connection settings",
+        "description": "How a PLC or SCADA reaches this gateway over Modbus: whether Modbus TCP and/or Modbus RTU (RS-485) is on, the host names/IP addresses and TCP port to connect to (port may differ from the configured one when the gateway refuses a port below 1024 — see note), the unit ID rules, the serial port, baud rate, parity, stop bits and slave address for RTU, the 32-bit word order (ABCD = high word first, CDAB = word-swapped), whether the server accepts writes (only the new-data acknowledge, and only when the new-data handshake is on), which TCP clients are allowed (the scope, private addresses only or any address, and the allow-list) and which were connected as of the server's last snapshot (as_of). Use it to diagnose 'my PLC cannot connect' or 'my floats read garbage' (wrong word order). This configuration exists only in this app.",
+        "route": { "method": "GET", "path": "/mcp/server" },
+        "params": []
+      },
+      {
+        "id": "register_map",
+        "title": "Where each sensor's values live in the Modbus register map",
+        "description": "For each sensor on the Modbus map: its Atrium device_id and name, its slot, the unit ID to address, the protocol (0-based) address of its 100-register block, and the protocol address of every measurement (addresses are specific to this gateway: a sensor type's measurements are in the order this gateway first received them, so do not reuse them for another gateway). Every measurement is a float32 in two registers, in the server's word order; NaN means no value. Holding registers (FC03) and input registers (FC04) carry the same data; a 1-based Modicon reference is 400001 + address (holding) or 300001 + address (input). The block header (status bits, sensor type, MAC, last report time, age, a sequence number that increments on every report, battery, RSSI, heartbeat) is listed once under header with offsets relative to the block address. Metric names are exactly the readings.metric names Atrium's own telemetry tools use. Sensors marked waveform_not_mapped can also send raw time-domain waveforms; only their processed overall values are on Modbus (waveforms are in Atrium). Capped at 50 sensors; pass device_id for one.",
+        "route": { "method": "GET", "path": "/mcp/register-map" },
+        "params": [
+          { "name": "device_id", "in": "query", "type": "string", "description": "A sensor's radio MAC (colon-separated, lowercase), from Atrium's device list. Omit for every sensor on the map." }
+        ]
+      }
+    ]
+  },
+  "ui": {
+    "icon": "MB",
+    "subtitle": "Modbus TCP / RTU server"
+  }
+}
