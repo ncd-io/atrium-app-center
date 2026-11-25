@@ -1,0 +1,613 @@
+{
+  "id": "assetpulse-lite",
+  "name": "AssetPulse Lite",
+  "version": "1.0.0",
+  "description": "Gated waveform collection: when a vibration metric crosses a level you set, the gateway requests the raw waveform from the sensor and stores it for download.",
+  "minPlatformVersion": "2.9.3",
+  "entries": {
+    "api": "backend/api/index.js",
+    "ingest": "backend/ingest/index.js",
+    "frontend": "frontend"
+  },
+  "capabilities": [
+    "data:read",
+    "telemetry:subscribe",
+    "radio:fft",
+    "notify:email",
+    "mqtt:client",
+    "events:publish",
+    "actions:provide",
+    "mcp:tools"
+  ],
+  "provides": {
+    "events": [
+      {
+        "topic": "threshold.state",
+        "title": "Vibration metric crossed a level",
+        "description": "Where one metric of one probe of a watched sensor stands against the two levels set in AssetPulse Lite. The Waveform Collection level is a routine trigger, normally set between the machine's idle and running values so a waveform is collected while it runs; it is NOT a warning. The Critical level is the alarm. `state` is an exclusive band: ok (below both), collecting (at or above the Waveform Collection level, below Critical), critical (at or above the Critical level). To act on trouble use `critical_breached`. `collection_breached` is true whenever the metric is at or above the Waveform Collection level, including while critical, so it is the field to use for 'the machine is running'. Published when the standing changes and re-asserted about every 10 minutes; a metric with neither level enabled publishes nothing. `probe` is 1 on a single-probe sensor; a dual-probe sensor (type 111) publishes each probe separately.",
+        "keyed_by": "sensor, probe and metric (one entity per metric of each probe of each watched sensor)",
+        "payload": {
+          "sensor_id": "int",
+          "device_id": "string",
+          "probe": "enum:1,2",
+          "name": "string?",
+          "location": "string?",
+          "asset": "string?",
+          "metric": "enum:velocity,rms_acc,max_acc,temperature",
+          "unit": "string",
+          "value": "number",
+          "state": "enum:ok,collecting,critical",
+          "collection_breached": "enum:true,false",
+          "critical_breached": "enum:true,false",
+          "collect_level": "number?",
+          "critical_level": "number?"
+        }
+      }
+    ],
+    "actions": [
+      {
+        "id": "sensor.add",
+        "title": "Watch a vibration sensor",
+        "description": "Start watching one vibration sensor (types 110, 111, 114) so thresholds can be set on it. A sensor is added once whatever its probe count: a dual-probe sensor (type 111) is one entry with thresholds per probe. Refused if the sensor is already watched, so read the sensors list first. `device_id` is the sensor's radio address from the available_sensors read; the last few bytes (for example 42:38:30:e2) are accepted when they match exactly one vibration sensor. Name, location and asset are free text and default to what is entered on the gateway's own sensor page. A new sensor has no thresholds: nothing is collected until threshold.set enables one. The settings here are shared by both probes of a dual-probe sensor. `min_interval_minutes` is the minimum time between Waveform Collection captures (0 to 43200); 0 collects once each time the level is crossed. **What a threshold collects** is set by the waveform_ parameters. `waveform_probes` applies to a dual-probe sensor (type 111): `both` (the default) collects probe 1 and probe 2 with one command and logs two captures, `triggering` collects only the probe whose reading crossed the level, and `1` or `2` always collects that probe. A single-probe sensor accepts only `1`. `waveform_command` is `standard` (the sensor's own waveform length and sample rate) or `custom`, which needs `waveform_sample_rate` (100, 200, 400, 800, 1600, 3200, 6400, 12800 or 25600 samples per second) and `waveform_duration_ms` (50 to 5000 in steps of 50). The sensor applies a custom command only when its Operation Mode is Smart; otherwise, and on a gateway whose platform cannot send one, the standard waveform is collected and the capture's `note` says so.",
+        "params": [
+          {
+            "name": "device_id",
+            "type": "string",
+            "title": "Sensor",
+            "options_from": "GET /device-options",
+            "description": "Radio address (MAC) of a vibration sensor, from available_sensors."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "title": "Name",
+            "optional": true
+          },
+          {
+            "name": "location",
+            "type": "string",
+            "title": "Location",
+            "optional": true
+          },
+          {
+            "name": "asset",
+            "type": "string",
+            "title": "Installed on",
+            "optional": true,
+            "description": "The machine the sensor is mounted on. Free text."
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "title": "Notes",
+            "optional": true
+          },
+          {
+            "name": "min_interval_minutes",
+            "type": "int",
+            "title": "Minimum minutes between collections",
+            "optional": true
+          },
+          {
+            "name": "waveform_probes",
+            "type": "enum:both,triggering,1,2",
+            "title": "Probes to collect",
+            "optional": true,
+            "description": "Dual-probe sensors (type 111) only: both (default), triggering (the probe that crossed), or always probe 1 or 2. Leave empty on a single-probe sensor."
+          },
+          {
+            "name": "waveform_command",
+            "type": "enum:standard,custom",
+            "title": "Waveform command",
+            "optional": true,
+            "description": "standard uses the sensor's own waveform settings. custom uses waveform_sample_rate and waveform_duration_ms."
+          },
+          {
+            "name": "waveform_sample_rate",
+            "type": "enum:100,200,400,800,1600,3200,6400,12800,25600",
+            "title": "Custom sample rate (samples/s)",
+            "optional": true
+          },
+          {
+            "name": "waveform_duration_ms",
+            "type": "int",
+            "title": "Custom duration (ms)",
+            "optional": true,
+            "description": "50 to 5000, in steps of 50."
+          }
+        ]
+      },
+      {
+        "id": "sensor.update",
+        "title": "Change a watched sensor",
+        "description": "Change a watched sensor's name, location, asset, notes, enabled switch, minimum time between collections, or its own alert recipients. Any parameter left out or left empty keeps its stored value. `enabled` false stops every threshold on the sensor without deleting them. `min_interval_minutes` (0 to 43200) limits the Waveform Collection threshold only: while a metric stays at or above its Waveform Collection level, a waveform is collected at most once per this many minutes (one clock per sensor, shared by both probes of a dual-probe sensor); 0 collects once each time the level is crossed. Critical thresholds ignore it. `notify_recipients` is a comma-separated list of email addresses for this sensor's Critical alerts and overrides the default list in settings. `sensor_id` comes from the sensors read. **What a threshold collects** is set by the waveform_ parameters. `waveform_probes` applies to a dual-probe sensor (type 111): `both` (the default) collects probe 1 and probe 2 with one command and logs two captures, `triggering` collects only the probe whose reading crossed the level, and `1` or `2` always collects that probe. A single-probe sensor accepts only `1`. `waveform_command` is `standard` (the sensor's own waveform length and sample rate) or `custom`, which needs `waveform_sample_rate` (100, 200, 400, 800, 1600, 3200, 6400, 12800 or 25600 samples per second) and `waveform_duration_ms` (50 to 5000 in steps of 50). The sensor applies a custom command only when its Operation Mode is Smart; otherwise, and on a gateway whose platform cannot send one, the standard waveform is collected and the capture's `note` says so.",
+        "params": [
+          {
+            "name": "sensor_id",
+            "type": "int",
+            "title": "Sensor",
+            "options_from": "GET /sensor-options",
+            "description": "Id of a watched sensor, from the sensors read. Not the radio address."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "title": "Name",
+            "optional": true
+          },
+          {
+            "name": "location",
+            "type": "string",
+            "title": "Location",
+            "optional": true
+          },
+          {
+            "name": "asset",
+            "type": "string",
+            "title": "Installed on",
+            "optional": true
+          },
+          {
+            "name": "notes",
+            "type": "text",
+            "title": "Notes",
+            "optional": true
+          },
+          {
+            "name": "enabled",
+            "type": "enum:true,false",
+            "title": "Enabled",
+            "optional": true
+          },
+          {
+            "name": "min_interval_minutes",
+            "type": "int",
+            "title": "Minimum minutes between collections",
+            "optional": true
+          },
+          {
+            "name": "notify_recipients",
+            "type": "string",
+            "title": "Alert recipients",
+            "optional": true,
+            "description": "Comma-separated email addresses."
+          },
+          {
+            "name": "waveform_probes",
+            "type": "enum:both,triggering,1,2",
+            "title": "Probes to collect",
+            "optional": true,
+            "description": "Dual-probe sensors (type 111) only: both (default), triggering (the probe that crossed), or always probe 1 or 2. Leave empty on a single-probe sensor."
+          },
+          {
+            "name": "waveform_command",
+            "type": "enum:standard,custom",
+            "title": "Waveform command",
+            "optional": true,
+            "description": "standard uses the sensor's own waveform settings. custom uses waveform_sample_rate and waveform_duration_ms."
+          },
+          {
+            "name": "waveform_sample_rate",
+            "type": "enum:100,200,400,800,1600,3200,6400,12800,25600",
+            "title": "Custom sample rate (samples/s)",
+            "optional": true
+          },
+          {
+            "name": "waveform_duration_ms",
+            "type": "int",
+            "title": "Custom duration (ms)",
+            "optional": true,
+            "description": "50 to 5000, in steps of 50."
+          }
+        ]
+      },
+      {
+        "id": "sensor.remove",
+        "title": "Stop watching a sensor",
+        "description": "Remove a watched sensor from AssetPulse Lite together with its thresholds, its capture log and its alert history. The waveforms already stored on the gateway and the sensor's telemetry are not deleted. This cannot be undone; to pause a sensor instead, use sensor.update with enabled false. `sensor_id` comes from the sensors read.",
+        "params": [
+          {
+            "name": "sensor_id",
+            "type": "int",
+            "title": "Sensor",
+            "options_from": "GET /sensor-options",
+            "description": "Id of a watched sensor, from the sensors read."
+          }
+        ]
+      },
+      {
+        "id": "threshold.set",
+        "title": "Set a sensor's thresholds for one metric",
+        "description": "Set the Waveform Collection and Critical thresholds for one metric on one watched sensor. On a dual-probe sensor (type 111) the thresholds are per probe, so `probe` (1 or 2) is required; on a single-probe sensor leave it out. The `probes` field of the sensors read says how many a sensor has. Units follow the metric: velocity is mm/s, rms_acc and max_acc are g, temperature is °C. A vibration metric's value is the largest of its three axes. The Waveform Collection threshold is the routine trigger, not a warning: set `collect_level` above the machine's idle value and below its running value so a waveform is collected while it runs (the telemetry read shows both). The Critical threshold is the alarm: when the metric reaches `critical_level` it collects a waveform if `critical_waveform` is true and emails if `critical_notify` is true, once per episode, and it ignores the sensor's minimum time between collections. Any parameter left out or left empty keeps its stored value, so to switch a threshold off send its enabled flag as false. A threshold cannot be enabled without a level, and with both enabled the Critical level must be at or above the Waveform Collection level. Returns the thresholds as stored.",
+        "params": [
+          {
+            "name": "sensor_id",
+            "type": "int",
+            "title": "Sensor",
+            "options_from": "GET /sensor-options",
+            "description": "Id of a watched sensor, from the sensors read."
+          },
+          {
+            "name": "probe",
+            "type": "enum:1,2",
+            "title": "Probe",
+            "optional": true,
+            "description": "Required on a dual-probe sensor (type 111). Leave empty on a single-probe sensor."
+          },
+          {
+            "name": "metric",
+            "type": "enum:velocity,rms_acc,max_acc,temperature",
+            "title": "Metric"
+          },
+          {
+            "name": "collect_enabled",
+            "type": "enum:true,false",
+            "title": "Waveform Collection enabled",
+            "optional": true
+          },
+          {
+            "name": "collect_level",
+            "type": "number",
+            "title": "Waveform Collection level",
+            "optional": true,
+            "description": "In the metric's unit."
+          },
+          {
+            "name": "critical_enabled",
+            "type": "enum:true,false",
+            "title": "Critical enabled",
+            "optional": true
+          },
+          {
+            "name": "critical_level",
+            "type": "number",
+            "title": "Critical level",
+            "optional": true,
+            "description": "In the metric's unit."
+          },
+          {
+            "name": "critical_waveform",
+            "type": "enum:true,false",
+            "title": "Critical collects a waveform",
+            "optional": true
+          },
+          {
+            "name": "critical_notify",
+            "type": "enum:true,false",
+            "title": "Critical sends an email",
+            "optional": true
+          }
+        ]
+      },
+      {
+        "id": "waveform.capture",
+        "title": "Collect a waveform now",
+        "description": "Ask one watched sensor for a raw waveform regardless of its thresholds. The sensor sleeps between reports, so the request is queued and sent the next time it reports; the waveform arrives about a minute after that. With only `sensor_id` it collects what the sensor is set up to collect. The waveform_ parameters override that for this one request without changing the sensor: `waveform_probes` (on a dual-probe type 111: `both`, which returns two captures, or `1` or `2`), `waveform_command` (`standard` or `custom`), and for custom `waveform_sample_rate` (100, 200, 400, 800, 1600, 3200, 6400, 12800 or 25600 samples per second) and `waveform_duration_ms` (50 to 5000 in steps of 50). A custom command is applied by the sensor only in Smart Operation Mode; the gateway holds it otherwise. Asking again while a request is outstanding returns the same request rather than queuing another. Returns `capture_ids` (one per probe); read the captures list to see each change from requested to stored or failed. Each capture costs sensor battery. `sensor_id` comes from the sensors read.",
+        "params": [
+          {
+            "name": "sensor_id",
+            "type": "int",
+            "title": "Sensor",
+            "options_from": "GET /sensor-options",
+            "description": "Id of a watched sensor, from the sensors read."
+          },
+          {
+            "name": "waveform_probes",
+            "type": "enum:both,triggering,1,2",
+            "title": "Probes to collect",
+            "optional": true,
+            "description": "Dual-probe sensors (type 111) only: both (default), triggering (the probe that crossed), or always probe 1 or 2. Leave empty on a single-probe sensor."
+          },
+          {
+            "name": "waveform_command",
+            "type": "enum:standard,custom",
+            "title": "Waveform command",
+            "optional": true,
+            "description": "standard uses the sensor's own waveform settings. custom uses waveform_sample_rate and waveform_duration_ms."
+          },
+          {
+            "name": "waveform_sample_rate",
+            "type": "enum:100,200,400,800,1600,3200,6400,12800,25600",
+            "title": "Custom sample rate (samples/s)",
+            "optional": true
+          },
+          {
+            "name": "waveform_duration_ms",
+            "type": "int",
+            "title": "Custom duration (ms)",
+            "optional": true,
+            "description": "50 to 5000, in steps of 50."
+          }
+        ]
+      },
+      {
+        "id": "settings.update",
+        "title": "Change AssetPulse Lite settings",
+        "description": "Change the gateway-wide settings. Any parameter left out or left empty keeps its stored value. `notify_recipients` is the default comma-separated list of email addresses for Critical alerts (a sensor can override it). The MQTT parameters control publishing through the gateway's own MQTT client, which must also be granted to AssetPulse Lite under Settings, MQTT Client: `mqtt_enabled` switches publishing on, `mqtt_waveform_topic` and `mqtt_alert_topic` are topic templates that may contain the tokens ::Gateway_Name::, ::Sensor_Name::, ::Device_Id::, ::Probe::, ::Location::, ::Asset::, ::Metric::, ::Trigger::, and `mqtt_include_samples` puts the full sample arrays in each waveform message. `capture_log_retention_days` (1 to 3650) is how long this app keeps its capture log and cleared alerts.",
+        "params": [
+          {
+            "name": "notify_recipients",
+            "type": "string",
+            "title": "Default alert recipients",
+            "optional": true,
+            "description": "Comma-separated email addresses."
+          },
+          {
+            "name": "mqtt_enabled",
+            "type": "enum:true,false",
+            "title": "Publish to MQTT",
+            "optional": true
+          },
+          {
+            "name": "mqtt_waveform_topic",
+            "type": "string",
+            "title": "Waveform topic",
+            "optional": true
+          },
+          {
+            "name": "mqtt_alert_topic",
+            "type": "string",
+            "title": "Alert topic",
+            "optional": true
+          },
+          {
+            "name": "mqtt_include_samples",
+            "type": "enum:true,false",
+            "title": "Include samples in waveform messages",
+            "optional": true
+          },
+          {
+            "name": "mqtt_qos",
+            "type": "enum:0,1,2",
+            "title": "MQTT QoS",
+            "optional": true
+          },
+          {
+            "name": "mqtt_retain",
+            "type": "enum:true,false",
+            "title": "MQTT retain",
+            "optional": true
+          },
+          {
+            "name": "capture_log_retention_days",
+            "type": "int",
+            "title": "Capture log retention (days)",
+            "optional": true
+          }
+        ]
+      }
+    ],
+    "reads": [
+      {
+        "id": "sensors",
+        "title": "Watched sensors and where they stand",
+        "description": "Every vibration sensor AssetPulse Lite watches: its id, radio address, name, location and asset, whether it is enabled, its minimum minutes between collections, its `probes` (one, or 1 and 2 on a dual-probe type 111), the latest value of each metric per probe (`values`, keyed by probe), the thresholds that are switched on (each with its `probe`), and its last capture. This is where sensor_id values come from. A threshold's `state` is ok, collecting (at or above the Waveform Collection level, which normally just means the machine is running) or critical (the alarm). Only thresholds with something enabled are listed here; sensor_setup lists all of them including ones switched off. `last_frame_ts` is when the sensor last reported, in ms since epoch; a sensor that has not reported for several report intervals cannot trigger anything. `waveform_probes` and `waveform_command` say what a threshold on that sensor collects: on a dual-probe sensor both probes, the triggering probe or a fixed one, and whether with the sensor's standard waveform or a custom sample rate and duration.",
+        "route": {
+          "method": "GET",
+          "path": "/sensors"
+        },
+        "params": []
+      },
+      {
+        "id": "sensor_setup",
+        "title": "Full setup of one watched sensor",
+        "description": "Everything configured for one watched sensor: its metadata, minimum minutes between collections, alert recipients (its own and the ones that actually apply), and all four metrics of each probe with both thresholds (each entry carries its `probe`), including levels that are stored but switched off. Each metric lists `readings`, the platform telemetry names it is computed from (the largest of the three axes), so the same data can be looked up with the platform's telemetry tools. Units: velocity mm/s, rms_acc and max_acc g, temperature °C. The waveform_ fields are what a threshold collects: `waveform_probes` (on a dual-probe sensor both, triggering, 1 or 2), `waveform_command` (standard or custom) and, for custom, `waveform_sample_rate` in samples per second and `waveform_duration_ms`.",
+        "route": {
+          "method": "GET",
+          "path": "/sensors/:sensor_id"
+        },
+        "params": [
+          {
+            "name": "sensor_id",
+            "in": "path",
+            "type": "int",
+            "description": "Id of a watched sensor, from the sensors read. Not the radio address."
+          }
+        ]
+      },
+      {
+        "id": "available_sensors",
+        "title": "Vibration sensors on this gateway",
+        "description": "Every whitelisted vibration sensor (types 110, 111, 114) the gateway has heard, with the name, location and asset entered on the gateway's sensor page its `probes`, and whether AssetPulse Lite already watches it (`added`, with its `sensor_id`). Use it to find a device_id for sensor.add.",
+        "route": {
+          "method": "GET",
+          "path": "/available-sensors"
+        },
+        "params": []
+      },
+      {
+        "id": "telemetry",
+        "title": "Recent history of one metric on a watched sensor",
+        "description": "The value the thresholds compare against (the largest axis of each report) for one metric of one probe over a recent window, bucketed. Each point is [bucket_start_ms, min, max, avg]. Use it to choose a Waveform Collection level: on a machine that starts and stops, the bucket minimums sit at the idle value and the maximums at the running value, and the level belongs between them. The response also carries the levels currently stored for the metric. Defaults to velocity over 24 hours in up to 200 points.",
+        "route": {
+          "method": "GET",
+          "path": "/sensors/:sensor_id/telemetry"
+        },
+        "params": [
+          {
+            "name": "sensor_id",
+            "in": "path",
+            "type": "int",
+            "description": "Id of a watched sensor, from the sensors read."
+          },
+          {
+            "name": "probe",
+            "in": "query",
+            "type": "enum:1,2",
+            "description": "Which probe of a dual-probe sensor (type 111). Defaults to 1."
+          },
+          {
+            "name": "metric",
+            "in": "query",
+            "type": "enum:velocity,rms_acc,max_acc,temperature",
+            "description": "Defaults to velocity."
+          },
+          {
+            "name": "hours",
+            "in": "query",
+            "type": "number",
+            "description": "Window length in hours, up to 720. Defaults to 24."
+          },
+          {
+            "name": "points",
+            "in": "query",
+            "type": "int",
+            "description": "Maximum number of buckets, 10 to 500. Defaults to 200."
+          }
+        ]
+      },
+      {
+        "id": "captures",
+        "title": "Waveform capture log",
+        "description": "Waveforms requested for watched sensors, newest first, with why each was collected. `trigger` is collection (the Waveform Collection threshold), critical (the Critical threshold), manual (someone asked) or other (the waveform arrived without this app asking: the sensor's own schedule, another app, or the gateway's sensor page). `status` is requested (asked for, not yet received), stored, or failed (the sensor did not answer; `error` says why). `metric`, `value` and `level` are the reading that triggered it, and `trigger_probe` the probe that reading came from. `waveform_available` false means the gateway's data retention has since removed the samples. Returns 50 rows by default; `total` says how many match. `probe` is the probe the waveform is of; a request for both probes of a dual-probe sensor appears as two rows. `command` is standard or custom (with `requested_sample_rate` and `requested_duration_ms`), and `note` appears when the command sent differs from the one configured.",
+        "route": {
+          "method": "GET",
+          "path": "/captures"
+        },
+        "params": [
+          {
+            "name": "sensor_id",
+            "in": "query",
+            "type": "int",
+            "description": "Only this watched sensor, from the sensors read."
+          },
+          {
+            "name": "probe",
+            "in": "query",
+            "type": "enum:1,2",
+            "description": "Only waveforms of this probe."
+          },
+          {
+            "name": "trigger",
+            "in": "query",
+            "type": "enum:collection,critical,manual,other"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "type": "enum:requested,stored,failed"
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "type": "int",
+            "description": "Only captures requested at or after this time, ms since epoch."
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "type": "int",
+            "description": "Only captures requested at or before this time, ms since epoch."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "int",
+            "description": "Rows to return, 1 to 500. Defaults to 50."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "int",
+            "description": "Rows to skip, for paging."
+          }
+        ]
+      },
+      {
+        "id": "capture",
+        "title": "One capture's details",
+        "description": "One capture from the log with its trigger, status, sample count, sample rate, duration, the sensor's temperature at capture and the sensor's location and asset. Does not include the samples; use capture_waveform for those.",
+        "route": {
+          "method": "GET",
+          "path": "/captures/:capture_id"
+        },
+        "params": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "type": "int",
+            "description": "Id from the captures read."
+          }
+        ]
+      },
+      {
+        "id": "capture_waveform",
+        "title": "Raw waveform samples of one capture",
+        "description": "The stored time-domain acceleration samples of one capture, in g, as three arrays x, y and z, with the sample rate `odr_hz` (time of sample i is i / odr_hz seconds). LARGE: a capture is typically thousands of samples per axis, so this is meant for software that will analyse or archive the waveform, not for reading in a conversation. AssetPulse Lite performs no analysis of its own. Pass `limit` (and `offset`) to fetch part of it. Fails with a clear message when the capture has not arrived, failed, or has been removed by the gateway's data retention.",
+        "route": {
+          "method": "GET",
+          "path": "/captures/:capture_id/waveform"
+        },
+        "params": [
+          {
+            "name": "capture_id",
+            "in": "path",
+            "type": "int",
+            "description": "Id from the captures read. The capture must have status stored."
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "type": "int",
+            "description": "Index of the first sample to return. Defaults to 0."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "int",
+            "description": "Number of samples per axis to return. Defaults to all of them."
+          }
+        ]
+      },
+      {
+        "id": "alerts",
+        "title": "Critical alert history",
+        "description": "Critical threshold episodes, newest first. An episode opens when a metric reaches its Critical level and clears when it drops back below; `open` true means it is still above. Each row has the `probe` and the reading that opened it, the level at the time, whether the alert email went out (`email_error` says why not) and the capture collected for it, if any. The Waveform Collection threshold never creates an alert.",
+        "route": {
+          "method": "GET",
+          "path": "/alerts"
+        },
+        "params": [
+          {
+            "name": "sensor_id",
+            "in": "query",
+            "type": "int",
+            "description": "Only this watched sensor, from the sensors read."
+          },
+          {
+            "name": "open",
+            "in": "query",
+            "type": "enum:true,false",
+            "description": "true for episodes still above the Critical level, false for cleared ones. Omit for both."
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "type": "int",
+            "description": "Only alerts opened at or after this time, ms since epoch."
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "type": "int",
+            "description": "Rows to return, 1 to 500. Defaults to 50."
+          }
+        ]
+      },
+      {
+        "id": "settings",
+        "title": "AssetPulse Lite settings",
+        "description": "The gateway-wide settings: the default email recipients for Critical alerts, the MQTT publishing configuration (enabled, topic templates, whether samples are included) and how many days the capture log is kept.",
+        "route": {
+          "method": "GET",
+          "path": "/settings"
+        },
+        "params": []
+      }
+    ]
+  },
+  "ui": {
+    "icon": "AL",
+    "subtitle": "Gated Waveform Collection"
+  }
+}
